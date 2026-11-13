@@ -1,0 +1,2296 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>شاريو - مغامرة السايبر اللانهائية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Cairo', sans-serif;
+            background-color: #090514;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .arcade-text-shadow {
+            text-shadow: 0 4px 0 #2e1065, 0 8px 20px rgba(168, 85, 247, 0.55);
+        }
+        .btn-arcade {
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            box-shadow: 0 5px 0 #7e22ce, 0 8px 20px rgba(168, 85, 247, 0.45);
+        }
+        .btn-arcade:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #7e22ce, 0 3px 8px rgba(168, 85, 247, 0.45);
+        }
+        .btn-gold {
+            box-shadow: 0 5px 0 #b45309, 0 8px 20px rgba(245, 158, 11, 0.4);
+        }
+        .btn-gold:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #b45309, 0 3px 8px rgba(245, 158, 11, 0.4);
+        }
+        .touch-btn {
+            background: rgba(24, 14, 46, 0.65);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(192, 132, 252, 0.5);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+            transition: background 0.08s, transform 0.08s, border-color 0.08s;
+        }
+        .touch-btn.active {
+            background: rgba(250, 204, 21, 0.45);
+            border-color: #facc15;
+            transform: scale(0.92);
+        }
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-float {
+            animation: floatSlow 2.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full overflow-hidden">
+
+    <!-- Main Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top HUD -->
+    <div id="hud" class="hidden absolute top-0 left-0 right-0 p-2 sm:p-4 pointer-events-none flex flex-wrap justify-between items-start gap-2 z-10">
+        <!-- Stats Bar -->
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3.5 bg-slate-950/90 backdrop-blur-md border border-purple-500/50 px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-2xl text-white shadow-xl shadow-purple-950/60">
+            <!-- Lives -->
+            <div class="flex items-center gap-1" title="الأرواح">
+                <span class="text-rose-500 text-base sm:text-xl">❤️</span>
+                <span id="hudLives" class="font-black text-sm sm:text-xl text-rose-300">3</span>
+            </div>
+            <div class="h-5 w-px bg-purple-500/30"></div>
+            <!-- Score -->
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] sm:text-xs text-purple-300 leading-none">النقاط</span>
+                <span id="hudScore" class="font-black text-sm sm:text-xl text-amber-400 tracking-wide">000000</span>
+            </div>
+            <div class="h-5 w-px bg-purple-500/30"></div>
+            <!-- Coins -->
+            <div class="flex items-center gap-1">
+                <span class="text-yellow-400 text-base sm:text-xl">🪙</span>
+                <span id="hudCoins" class="font-black text-sm sm:text-xl text-yellow-300">0</span>
+            </div>
+            <div class="h-5 w-px bg-purple-500/30"></div>
+            <!-- Triple Jump Dots (Recharges on Ground) -->
+            <div class="flex flex-col items-center" title="القفز الثلاثي (يُشحن عند لمس الأرض)">
+                <span class="text-[10px] sm:text-xs text-purple-300 leading-none">القفزات (×3)</span>
+                <div id="hudJumpDots" class="flex items-center gap-1.5 mt-1">
+                    <span class="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_8px_#facc15]"></span>
+                    <span class="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_8px_#facc15]"></span>
+                    <span class="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_8px_#facc15]"></span>
+                </div>
+            </div>
+            <div class="h-5 w-px bg-purple-500/30"></div>
+            <!-- Dash Status -->
+            <div class="flex flex-col items-center" title="الداش السريع">
+                <span class="text-[10px] sm:text-xs text-purple-300 leading-none">الداش</span>
+                <span id="hudDashStatus" class="font-black text-xs sm:text-sm text-cyan-300 mt-0.5">⚡ جاهز</span>
+            </div>
+            <div class="h-5 w-px bg-purple-500/30"></div>
+            <!-- Distance -->
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] sm:text-xs text-purple-300 leading-none">المسافة</span>
+                <span id="hudDist" class="font-black text-sm sm:text-xl text-emerald-400">0m</span>
+            </div>
+            <div class="hidden lg:block h-5 w-px bg-purple-500/30"></div>
+            <!-- Biome Indicator -->
+            <div class="hidden lg:flex flex-col items-center">
+                <span class="text-[10px] sm:text-xs text-purple-300 leading-none">المنطقة</span>
+                <span id="hudBiome" class="font-bold text-xs sm:text-sm text-fuchsia-300">السهول المشمسة</span>
+            </div>
+        </div>
+
+        <!-- Quick Controls (Sound, Touch Toggle, Pause) -->
+        <div class="flex items-center gap-2 pointer-events-auto">
+            <button id="btnToggleTouch" type="button" class="bg-slate-950/85 hover:bg-purple-950 text-white border border-purple-500/40 p-2 sm:p-2.5 rounded-xl shadow-lg text-sm sm:text-base font-bold flex items-center gap-1 cursor-pointer" title="إظهار/إخفاء أزرار اللمس">
+                <span>🎮</span>
+                <span class="hidden sm:inline text-xs">أزرار اللمس</span>
+            </button>
+            <button id="btnMute" type="button" class="bg-slate-950/85 hover:bg-purple-950 text-white border border-purple-500/40 p-2 sm:p-2.5 rounded-xl shadow-lg text-base sm:text-lg cursor-pointer" title="كتم/تشغيل الصوت">
+                🔊
+            </button>
+            <button id="btnPause" type="button" class="bg-slate-950/85 hover:bg-purple-950 text-white border border-purple-500/40 p-2 sm:p-2.5 rounded-xl shadow-lg text-base sm:text-lg font-bold cursor-pointer" title="إيقاف مؤقت">
+                ⏸️
+            </button>
+        </div>
+    </div>
+
+    <!-- Checkpoint / Event Toast Notification -->
+    <div id="toastBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-20 pointer-events-none transition-all duration-300">
+        <div class="bg-gradient-to-r from-purple-800 via-fuchsia-700 to-purple-800 text-white font-black px-6 py-2.5 rounded-full border-2 border-amber-400 shadow-2xl flex items-center gap-2 text-sm sm:text-lg whitespace-nowrap">
+            <span>🚩</span>
+            <span id="toastText">تم حفظ نقطة التفتيش!</span>
+        </div>
+    </div>
+
+    <!-- Virtual Touch Controls for Mobile & Tablet -->
+    <div id="touchControls" class="hidden fixed inset-x-0 bottom-0 p-4 sm:p-6 flex justify-between items-end pointer-events-none z-20">
+        <!-- Movement Left / Right -->
+        <div class="flex items-center gap-3 sm:gap-4 pointer-events-auto" dir="ltr">
+            <button id="touchLeft" type="button" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-3xl font-black">
+                ◀
+            </button>
+            <button id="touchRight" type="button" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-3xl font-black">
+                ▶
+            </button>
+        </div>
+
+        <!-- Dash, Fire & Triple Jump -->
+        <div class="flex items-center gap-2.5 sm:gap-4 pointer-events-auto" dir="ltr">
+            <button id="touchDash" type="button" class="touch-btn w-14 h-14 sm:w-16 sm:h-16 rounded-full flex flex-col items-center justify-center text-cyan-300 font-black border-cyan-400/70">
+                <span class="text-lg leading-none">⚡</span>
+                <span class="text-[10px] tracking-wider mt-0.5">DASH</span>
+            </button>
+            <button id="touchAction" type="button" class="touch-btn w-13 h-13 sm:w-15 sm:h-15 rounded-full flex flex-col items-center justify-center text-amber-300 font-black" style="width: 3.3rem; height: 3.3rem;">
+                <span class="text-lg leading-none">🔥</span>
+                <span class="text-[9px]">نار</span>
+            </button>
+            <button id="touchJump" type="button" class="touch-btn rounded-full flex flex-col items-center justify-center text-amber-300 font-black border-amber-400/80 bg-purple-950/75" style="width: 4.6rem; height: 4.6rem;">
+                <span class="text-2xl leading-none">▲</span>
+                <span id="touchJumpLabel" class="text-xs mt-0.5">قفز 3/3</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Start Screen Overlay -->
+    <div id="startScreen" class="fixed inset-0 z-30 flex items-center justify-center bg-gradient-to-b from-purple-950/95 via-[#0c061c]/95 to-black/98 backdrop-blur-sm p-4">
+        <div class="max-w-lg w-full bg-[#110924]/95 border-2 border-purple-500/60 rounded-3xl p-6 sm:p-8 text-center text-white shadow-2xl shadow-purple-900/50 relative overflow-hidden">
+            <!-- Decorative Top Badge -->
+            <div class="inline-block bg-purple-500/20 border border-amber-400/50 text-amber-300 text-xs sm:text-sm font-bold px-4 py-1 rounded-full mb-3">
+                ✨ مغامرة منصات لا نهائية متجددة ✨
+            </div>
+
+            <!-- Game Title -->
+            <h1 class="text-5xl sm:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-300 via-yellow-400 to-purple-400 arcade-text-shadow mb-2 animate-float">
+                شاريو
+            </h1>
+            <p class="text-purple-200/85 text-sm sm:text-base mb-5">
+                عالم لا نهائي يتغير في كل مرة! اجمع العملات، فعّل نقاط التفتيش، وتحدث مع الشخصيات المساعدة.
+            </p>
+
+            <!-- High Score Display -->
+            <div class="bg-black/60 border border-purple-500/30 rounded-2xl py-2.5 px-4 mb-5 flex justify-around items-center">
+                <div>
+                    <div class="text-xs text-purple-300">أفضل نتيجة</div>
+                    <div id="startHighScore" class="text-xl sm:text-2xl font-black text-amber-400">0</div>
+                </div>
+                <div class="h-8 w-px bg-purple-500/30"></div>
+                <div>
+                    <div class="text-xs text-purple-300">أبعد مسافة</div>
+                    <div id="startBestDist" class="text-xl sm:text-2xl font-black text-emerald-400">0m</div>
+                </div>
+            </div>
+
+            <!-- Play Button -->
+            <button id="btnStartGame" type="button" class="btn-gold w-full bg-gradient-to-b from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black text-xl sm:text-2xl py-4 rounded-2xl mb-5 cursor-pointer">
+                🚀 بدء المغامرة
+            </button>
+
+            <!-- Controls Guide -->
+            <div class="grid grid-cols-2 gap-2.5 text-right text-xs sm:text-sm bg-black/65 p-3.5 rounded-2xl border border-purple-500/25">
+                <div class="flex items-center gap-2">
+                    <span class="bg-purple-950 border border-purple-500/40 px-2 py-1 rounded text-amber-300 font-bold">⬅️ ➡️ / AD</span>
+                    <span class="text-slate-300">الحركة</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="bg-purple-950 border border-purple-500/40 px-2 py-1 rounded text-amber-300 font-bold">مسافة / W</span>
+                    <span class="text-slate-300">قفز ثلاثي (×3)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="bg-purple-950 border border-purple-500/40 px-2 py-1 rounded text-cyan-300 font-bold">Shift / E / X</span>
+                    <span class="text-slate-300">داش سريع</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="bg-purple-950 border border-purple-500/40 px-2 py-1 rounded text-emerald-300 font-bold">📱 الجوال</span>
+                    <span class="text-slate-300">أزرار لمس متكاملة</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="pauseModal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="max-w-sm w-full bg-[#110924] border-2 border-purple-500/60 rounded-3xl p-6 text-center text-white shadow-2xl">
+            <h2 class="text-3xl font-black text-amber-400 mb-2">اللعبة متوقفة</h2>
+            <p class="text-purple-200/70 text-sm mb-6">خذ نفساً عميقاً واستعد لإكمال المغامرة!</p>
+            <div class="flex flex-col gap-3">
+                <button id="btnResume" type="button" class="btn-gold w-full bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 font-black text-lg py-3 rounded-2xl cursor-pointer">
+                    ▶️ متابعة اللعب
+                </button>
+                <button id="btnRestartFromPause" type="button" class="btn-arcade w-full bg-gradient-to-b from-purple-600 to-purple-800 text-white font-black text-lg py-3 rounded-2xl cursor-pointer">
+                    🔄 عالم جديد
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="hidden fixed inset-0 z-30 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+        <div class="max-w-md w-full bg-[#110924] border-2 border-rose-500/60 rounded-3xl p-6 sm:p-8 text-center text-white shadow-2xl">
+            <div class="text-5xl mb-2">💫</div>
+            <h2 class="text-4xl font-black text-rose-400 mb-1">انتهت المغامرة!</h2>
+            <p id="gameOverReason" class="text-purple-200/75 text-sm mb-5">لقد نفدت جميع أرواح شاريو</p>
+
+            <div class="bg-black/60 rounded-2xl p-4 mb-6 space-y-2.5 border border-purple-500/30">
+                <div class="flex justify-between items-center">
+                    <span class="text-purple-300">النقاط النهائية:</span>
+                    <span id="finalScore" class="font-black text-xl text-amber-400">0</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-purple-300">المسافة المقطوعة:</span>
+                    <span id="finalDist" class="font-black text-xl text-emerald-400">0m</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-purple-300">العملات المجموعة:</span>
+                    <span id="finalCoins" class="font-black text-xl text-yellow-300">0</span>
+                </div>
+                <div id="newRecordBadge" class="hidden pt-2 border-t border-purple-500/30 text-center text-amber-300 font-black animate-pulse">
+                    🏆 رقم قياسي جديد! 🏆
+                </div>
+            </div>
+
+            <button id="btnPlayAgain" type="button" class="btn-gold w-full bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black text-xl py-4 rounded-2xl cursor-pointer">
+                🔁 العب مجدداً (خريطة جديدة)
+            </button>
+        </div>
+    </div>
+
+<script>
+// ============================================================================
+// 1. محرك الصوت الآمن (Web Audio API Synthesizer مع حماية كاملة ضد الأخطاء)
+// ============================================================================
+class SoundEngine {
+    constructor() {
+        this.ctx = null;
+        this.muted = false;
+    }
+
+    init() {
+        try {
+            if (!this.ctx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) {
+                    this.ctx = new AudioCtx();
+                }
+            }
+            if (this.ctx && this.ctx.state === 'suspended') {
+                this.ctx.resume().catch(() => {});
+            }
+        } catch (e) {
+            // تجاهل أي قيود من المتصفح على الصوت حتى لا يتعطل بدء اللعبة أبداً
+        }
+    }
+
+    toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+    }
+
+    playTone(freq, type, duration, vol = 0.14, slideFreq = null, delay = 0) {
+        if (this.muted) return;
+        try {
+            this.init();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime + delay;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, now);
+            if (slideFreq) {
+                osc.frequency.exponentialRampToValueAtTime(slideFreq, now + duration);
+            }
+            gain.gain.setValueAtTime(vol, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + duration);
+        } catch (e) {}
+    }
+
+    jump(isBig = false, jumpNumber = 1) {
+        const pitchBoost = (jumpNumber - 1) * 145;
+        const baseFreq = (isBig ? 230 : 280) + pitchBoost;
+        const endFreq = (isBig ? 560 : 660) + pitchBoost * 1.3;
+        this.playTone(baseFreq, jumpNumber === 3 ? 'triangle' : 'square', 0.16, 0.12, endFreq);
+    }
+
+    dash() {
+        this.playTone(560, 'sawtooth', 0.09, 0.14, 180, 0);
+        this.playTone(820, 'sine', 0.13, 0.11, 280, 0.03);
+    }
+
+    coin() {
+        this.playTone(987.77, 'sine', 0.08, 0.14, null, 0);
+        this.playTone(1318.51, 'sine', 0.24, 0.14, null, 0.07);
+    }
+
+    stomp() {
+        this.playTone(185, 'sawtooth', 0.12, 0.17, 60);
+    }
+
+    bump() {
+        this.playTone(130, 'triangle', 0.1, 0.18, 70);
+    }
+
+    breakBlock() {
+        this.playTone(160, 'square', 0.08, 0.17, 50, 0);
+        this.playTone(110, 'sawtooth', 0.12, 0.17, 40, 0.05);
+    }
+
+    powerup() {
+        const notes = [330, 392, 659, 523, 587, 784];
+        notes.forEach((n, i) => {
+            this.playTone(n, 'triangle', 0.09, 0.14, null, i * 0.06);
+        });
+    }
+
+    fireball() {
+        this.playTone(620, 'sawtooth', 0.12, 0.11, 180);
+    }
+
+    checkpoint() {
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((n, i) => {
+            this.playTone(n, 'sine', 0.18, 0.17, null, i * 0.08);
+        });
+    }
+
+    npcTalk() {
+        this.playTone(440, 'sine', 0.06, 0.1, 520, 0);
+        this.playTone(580, 'sine', 0.08, 0.1, 640, 0.07);
+    }
+
+    hurt() {
+        this.playTone(320, 'sawtooth', 0.15, 0.18, 140, 0);
+        this.playTone(220, 'sawtooth', 0.25, 0.18, 90, 0.12);
+    }
+
+    gameOver() {
+        const notes = [392, 369.99, 349.23, 329.63, 261.63];
+        notes.forEach((n, i) => {
+            this.playTone(n, 'sawtooth', 0.22, 0.15, null, i * 0.17);
+        });
+    }
+}
+
+const sound = new SoundEngine();
+
+// ============================================================================
+// 2. ثوابت اللعبة والمناطق البيئية (Biomes)
+// ============================================================================
+const TILE_SIZE = 44;
+const GRAVITY = 2100;
+const MAX_FALL_SPEED = 980;
+const CHUNK_WIDTH_TILES = 16;
+
+const BIOMES = [
+    {
+        name: "السهول المشمسة",
+        skyTop: "#38bdf8",
+        skyBottom: "#bae6fd",
+        hillColor: "#22c55e",
+        hillDark: "#15803d",
+        groundTop: "#22c55e",
+        groundBody: "#92400e",
+        groundAccent: "#78350f",
+        stars: false
+    },
+    {
+        name: "صحراء الغروب",
+        skyTop: "#f97316",
+        skyBottom: "#fde047",
+        hillColor: "#ea580c",
+        hillDark: "#9a3412",
+        groundTop: "#facc15",
+        groundBody: "#b45309",
+        groundAccent: "#78350f",
+        stars: false
+    },
+    {
+        name: "الغابة الليلية",
+        skyTop: "#0f172a",
+        skyBottom: "#1e3a8a",
+        hillColor: "#065f46",
+        hillDark: "#064e3b",
+        groundTop: "#10b981",
+        groundBody: "#334155",
+        groundAccent: "#1e293b",
+        stars: true
+    },
+    {
+        name: "قلعة السايبر",
+        skyTop: "#090514",
+        skyBottom: "#3b0764",
+        hillColor: "#6d28d9",
+        hillDark: "#4c1d95",
+        groundTop: "#c084fc",
+        groundBody: "#1e1b4b",
+        groundAccent: "#312e81",
+        stars: true
+    }
+];
+
+const NPC_DIALOGUES = [
+    "أهلاً يا شاريو! خذ هذه الهدية لتساعدك في رحلتك!",
+    "لديك 3 قفزات في الهواء، وتُشحن فوراً عند لمس الأرض!",
+    "استخدم زر الداش (Shift أو ⚡) للاندفاع وسحق الأعداء!",
+    "تم حفظ تقدمك عند الراية! تفضل هذا الدعم الذهبي!",
+    "العالم يتجدد في كل جولة.. اجمع أكبر قدر من النقاط!"
+];
+
+// ============================================================================
+// 3. مولد الأرقام العشوائية (Seeded PRNG)
+// ============================================================================
+class SeededRandom {
+    constructor(seed) {
+        this.seed = Math.abs(Math.floor(seed)) % 2147483647;
+        if (this.seed <= 0) this.seed += 2147483646;
+    }
+    next() {
+        this.seed = (this.seed * 16807) % 2147483647;
+        return (this.seed - 1) / 2147483646;
+    }
+    range(min, max) {
+        return min + this.next() * (max - min);
+    }
+    int(min, max) {
+        return Math.floor(this.range(min, max + 1));
+    }
+    chance(probability) {
+        return this.next() < probability;
+    }
+}
+
+// ============================================================================
+// 4. حالة اللعبة واللاعب
+// ============================================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameState = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER
+let lastTime = 0;
+let worldSeed = Date.now();
+let rng = new SeededRandom(worldSeed);
+
+const keys = {
+    left: false,
+    right: false,
+    jump: false,
+    jumpPressed: false,
+    dash: false,
+    dashPressed: false,
+    action: false,
+    actionPressed: false
+};
+
+const player = {
+    x: 120,
+    y: 250,
+    vx: 0,
+    vy: 0,
+    width: 34,
+    height: 42,
+    facing: 1,
+    grounded: false,
+    coyoteTimer: 0,
+    jumpBufferTimer: 0,
+    maxJumps: 3,
+    jumpsRemaining: 3, // 3 قفزات تُعاد بالكامل عند لمس الأرض
+    dashTimer: 0,
+    dashCooldown: 0,
+    dashTrail: [],
+    powerState: 0, // 0: عادي، 1: عملاق، 2: ناري
+    invulnTimer: 0,
+    fireCooldown: 0,
+    animFrame: 0,
+    animTimer: 0,
+    lives: 3,
+    score: 0,
+    coins: 0,
+    maxDistance: 0
+};
+
+let checkpoint = {
+    x: 120,
+    y: 250,
+    score: 0,
+    coins: 0,
+    powerState: 0
+};
+
+let tiles = new Map();
+let generatedChunks = new Set();
+let enemies = [];
+let items = [];
+let fireballs = [];
+let particles = [];
+let floatingTexts = [];
+let checkpointsList = [];
+let npcs = [];
+let clouds = [];
+
+const camera = {
+    x: 0,
+    y: 0,
+    shake: 0
+};
+
+let highScore = 0;
+let bestDistance = 0;
+try {
+    highScore = parseInt(localStorage.getItem('shario_highscore') || '0', 10) || 0;
+    bestDistance = parseInt(localStorage.getItem('shario_bestdist') || '0', 10) || 0;
+} catch (e) {}
+
+function updateStartScreenRecords() {
+    const hsEl = document.getElementById('startHighScore');
+    const bdEl = document.getElementById('startBestDist');
+    if (hsEl) hsEl.textContent = highScore.toLocaleString();
+    if (bdEl) bdEl.textContent = bestDistance + 'm';
+}
+updateStartScreenRecords();
+
+// ============================================================================
+// 5. توليد الخريطة اللانهائية والمتغيرة
+// ============================================================================
+function tileKey(tx, ty) {
+    return `${tx},${ty}`;
+}
+
+function setTile(tx, ty, type, data = {}) {
+    tiles.set(tileKey(tx, ty), { tx, ty, type, bounceY: 0, ...data });
+}
+
+function getTile(tx, ty) {
+    return tiles.get(tileKey(tx, ty));
+}
+
+function deleteTile(tx, ty) {
+    tiles.delete(tileKey(tx, ty));
+}
+
+let lastGroundHeight = 11;
+
+function generateChunk(chunkIndex) {
+    if (generatedChunks.has(chunkIndex)) return;
+    generatedChunks.add(chunkIndex);
+
+    const startTx = chunkIndex * CHUNK_WIDTH_TILES;
+    const endTx = startTx + CHUNK_WIDTH_TILES;
+
+    // القطعة الأولى آمنة للانطلاق
+    if (chunkIndex === 0) {
+        lastGroundHeight = 11;
+        for (let tx = -4; tx < endTx; tx++) {
+            for (let ty = lastGroundHeight; ty < 18; ty++) {
+                setTile(tx, ty, ty === lastGroundHeight ? 'ground_top' : 'ground');
+            }
+        }
+        // حاجز غير مرئي خلف البداية
+        for (let ty = -6; ty < 15; ty++) {
+            setTile(-3, ty, 'barrier');
+        }
+        // مربعات ترحيبية وأنبوب أخضر قصير سهل القفز
+        setTile(6, 7, 'question', { content: 'coin' });
+        setTile(9, 7, 'brick');
+        setTile(10, 7, 'question', { content: 'mushroom' });
+        setTile(11, 7, 'brick');
+
+        setTile(13, lastGroundHeight - 1, 'pipe_short_l');
+        setTile(14, lastGroundHeight - 1, 'pipe_short_r');
+
+        npcs.push({
+            x: 4 * TILE_SIZE,
+            y: (lastGroundHeight - 1) * TILE_SIZE - 6,
+            width: 34,
+            height: 44,
+            dialogue: "مرحباً يا شاريو! اقفز 3 مرات في الهواء واضرب مربعات (؟)!",
+            gifted: false,
+            giftType: 'coin_burst',
+            bobTimer: 0
+        });
+        return;
+    }
+
+    // نقطة تفتيش (Checkpoint) كل 5 قطع (~1200 بكسل)
+    const isCheckpointChunk = (chunkIndex % 5 === 0);
+
+    if (isCheckpointChunk) {
+        const cpGround = Math.max(8, Math.min(12, lastGroundHeight));
+        lastGroundHeight = cpGround;
+
+        for (let tx = startTx; tx < endTx; tx++) {
+            for (let ty = cpGround; ty < 18; ty++) {
+                setTile(tx, ty, ty === cpGround ? 'ground_top' : 'ground');
+            }
+        }
+
+        const flagTx = startTx + 5;
+        checkpointsList.push({
+            x: flagTx * TILE_SIZE + TILE_SIZE / 2,
+            y: cpGround * TILE_SIZE,
+            activated: false,
+            flagRaise: 0
+        });
+
+        const npcTx = startTx + 8;
+        const msg = NPC_DIALOGUES[rng.int(0, NPC_DIALOGUES.length - 1)];
+        const giftOptions = ['mushroom', 'flower', 'heart'];
+        npcs.push({
+            x: npcTx * TILE_SIZE,
+            y: (cpGround - 1) * TILE_SIZE - 6,
+            width: 34,
+            height: 44,
+            dialogue: msg,
+            gifted: false,
+            giftType: giftOptions[rng.int(0, giftOptions.length - 1)],
+            bobTimer: rng.range(0, 5)
+        });
+
+        for (let i = 0; i < 5; i++) {
+            items.push({
+                type: 'coin',
+                x: (startTx + 3 + i) * TILE_SIZE + 10,
+                y: (cpGround - 3 - Math.sin((i / 4) * Math.PI) * 1.5) * TILE_SIZE,
+                vx: 0,
+                vy: 0,
+                width: 24,
+                height: 24,
+                collected: false,
+                bob: i * 0.5
+            });
+        }
+        return;
+    }
+
+    // توليد التضاريس العشوائية المتغيرة
+    let tx = startTx;
+    while (tx < endTx) {
+        const remaining = endTx - tx;
+        const difficulty = Math.min(1, chunkIndex / 30);
+
+        // حفرة (Gap)
+        if (remaining >= 4 && tx > startTx + 1 && rng.chance(0.22 + difficulty * 0.1)) {
+            const gapWidth = rng.int(2, Math.min(3, remaining - 2));
+            if (rng.chance(0.65)) {
+                for (let g = 0; g < gapWidth; g++) {
+                    items.push({
+                        type: 'coin',
+                        x: (tx + g) * TILE_SIZE + 10,
+                        y: (lastGroundHeight - 3) * TILE_SIZE,
+                        vx: 0,
+                        vy: 0,
+                        width: 24,
+                        height: 24,
+                        collected: false,
+                        bob: g * 0.4
+                    });
+                }
+            }
+            if (chunkIndex > 2 && rng.chance(0.4)) {
+                enemies.push({
+                    type: 'bat',
+                    x: (tx + gapWidth / 2) * TILE_SIZE,
+                    y: (lastGroundHeight - 3.5) * TILE_SIZE,
+                    baseY: (lastGroundHeight - 3.5) * TILE_SIZE,
+                    vx: -75,
+                    vy: 0,
+                    width: 34,
+                    height: 28,
+                    alive: true,
+                    squished: 0,
+                    timer: rng.range(0, 6)
+                });
+            }
+            tx += gapWidth;
+            continue;
+        }
+
+        const segLen = Math.min(remaining, rng.int(4, 9));
+        const deltaH = rng.int(-2, 2);
+        lastGroundHeight = Math.max(7, Math.min(13, lastGroundHeight + deltaH));
+
+        for (let i = 0; i < segLen; i++) {
+            const curTx = tx + i;
+            for (let ty = lastGroundHeight; ty < 18; ty++) {
+                setTile(curTx, ty, ty === lastGroundHeight ? 'ground_top' : 'ground');
+            }
+        }
+
+        // أنبوب أخضر قصير (1 إلى 1.4 بلاطة) بحيث يسهل القفز فوقه دائماً
+        if (segLen >= 4 && rng.chance(0.35)) {
+            const pipeTx = tx + rng.int(1, segLen - 3);
+            const isMidPipe = rng.chance(0.45);
+            setTile(pipeTx, lastGroundHeight - 1, isMidPipe ? 'pipe_mid_l' : 'pipe_short_l');
+            setTile(pipeTx + 1, lastGroundHeight - 1, isMidPipe ? 'pipe_mid_r' : 'pipe_short_r');
+
+            if (chunkIndex >= 2 && rng.chance(0.48)) {
+                const pipeTopY = (lastGroundHeight - 1) * TILE_SIZE + (isMidPipe ? -16 : 0);
+                enemies.push({
+                    type: 'plant',
+                    x: pipeTx * TILE_SIZE + 26,
+                    y: pipeTopY,
+                    baseY: pipeTopY,
+                    vx: 0,
+                    vy: 0,
+                    width: 34,
+                    height: 36,
+                    alive: true,
+                    squished: 0,
+                    timer: rng.range(0, 6)
+                });
+            }
+        } else if (segLen >= 4 && rng.chance(0.55)) {
+            const rowLen = rng.int(2, Math.min(5, segLen - 1));
+            const rowStart = tx + rng.int(0, segLen - rowLen);
+            const rowY = lastGroundHeight - rng.int(3, 4);
+
+            for (let b = 0; b < rowLen; b++) {
+                const bTx = rowStart + b;
+                if (rng.chance(0.45)) {
+                    const roll = rng.next();
+                    let content = 'coin';
+                    if (roll < 0.18) content = 'mushroom';
+                    else if (roll < 0.30) content = 'flower';
+                    setTile(bTx, rowY, 'question', { content });
+                } else {
+                    setTile(bTx, rowY, 'brick');
+                }
+            }
+
+            if (rng.chance(0.5)) {
+                for (let b = 0; b < rowLen; b++) {
+                    items.push({
+                        type: 'coin',
+                        x: (rowStart + b) * TILE_SIZE + 10,
+                        y: (rowY - 1.3) * TILE_SIZE,
+                        vx: 0,
+                        vy: 0,
+                        width: 24,
+                        height: 24,
+                        collected: false,
+                        bob: b * 0.3
+                    });
+                }
+            }
+        }
+
+        // أعداء أرضيون
+        if (segLen >= 3 && rng.chance(0.6 + difficulty * 0.2)) {
+            const enemyTx = tx + rng.int(1, segLen - 2);
+            const enemyType = rng.chance(0.35) ? 'koopa' : 'goomba';
+            enemies.push({
+                type: enemyType,
+                x: enemyTx * TILE_SIZE + 5,
+                y: (lastGroundHeight - 1) * TILE_SIZE - (enemyType === 'koopa' ? 8 : 0),
+                vx: rng.chance(0.5) ? -85 : 85,
+                vy: 0,
+                width: 34,
+                height: enemyType === 'koopa' ? 42 : 34,
+                alive: true,
+                squished: 0,
+                shellState: false,
+                shellMoving: false,
+                timer: 0
+            });
+        }
+
+        tx += segLen;
+    }
+}
+
+function cleanupBehindCamera() {
+    const cutoffX = camera.x - TILE_SIZE * 20;
+    const cutoffTx = Math.floor(cutoffX / TILE_SIZE);
+
+    for (const [key, tile] of tiles.entries()) {
+        if (tile.tx < cutoffTx) {
+            tiles.delete(key);
+        }
+    }
+    enemies = enemies.filter(e => e.x > cutoffX && e.y < 1200);
+    items = items.filter(i => !i.collected && i.x > cutoffX && i.y < 1200);
+    fireballs = fireballs.filter(f => f.alive && f.x > cutoffX && f.x < camera.x + canvas.width + 400);
+    npcs = npcs.filter(n => n.x > cutoffX);
+}
+
+// ============================================================================
+// 6. المؤثرات البصرية والإشعارات
+// ============================================================================
+function spawnParticles(x, y, color, count = 8, speed = 220) {
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = (0.3 + Math.random() * 0.7) * speed;
+        particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * spd,
+            vy: Math.sin(angle) * spd - 100,
+            size: 4 + Math.random() * 5,
+            color,
+            life: 0.45 + Math.random() * 0.3,
+            maxLife: 0.75
+        });
+    }
+}
+
+function addFloatingText(x, y, text, color = '#facc15') {
+    floatingTexts.push({ x, y, text, color, life: 1.0 });
+}
+
+let toastTimeout = null;
+function showToast(message) {
+    const banner = document.getElementById('toastBanner');
+    const txt = document.getElementById('toastText');
+    if (!banner || !txt) return;
+    txt.textContent = message;
+    banner.classList.remove('hidden');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        banner.classList.add('hidden');
+    }, 2800);
+}
+
+// ============================================================================
+// 7. الفيزياء والتصادمات وحركة اللاعب
+// ============================================================================
+function isSolidTile(tile) {
+    if (!tile) return false;
+    return tile.type !== 'coin';
+}
+
+function getTileHitbox(tile) {
+    if (tile.type === 'pipe_mid_l' || tile.type === 'pipe_mid_r') {
+        return {
+            x: tile.tx * TILE_SIZE,
+            y: tile.ty * TILE_SIZE - 16,
+            width: TILE_SIZE,
+            height: TILE_SIZE + 16
+        };
+    }
+    return {
+        x: tile.tx * TILE_SIZE,
+        y: tile.ty * TILE_SIZE,
+        width: TILE_SIZE,
+        height: TILE_SIZE
+    };
+}
+
+function rectsOverlap(a, b) {
+    return a.x < b.x + b.width &&
+           a.x + a.width > b.x &&
+           a.y < b.y + b.height &&
+           a.y + a.height > b.y;
+}
+
+function checkTileCollision(box) {
+    const startTx = Math.floor(box.x / TILE_SIZE);
+    const endTx = Math.floor((box.x + box.width - 0.01) / TILE_SIZE);
+    const startTy = Math.floor((box.y - 20) / TILE_SIZE);
+    const endTy = Math.floor((box.y + box.height + 20) / TILE_SIZE);
+
+    const hits = [];
+    for (let tx = startTx; tx <= endTx; tx++) {
+        for (let ty = startTy; ty <= endTy; ty++) {
+            const tile = getTile(tx, ty);
+            if (isSolidTile(tile)) {
+                const hb = getTileHitbox(tile);
+                if (rectsOverlap(box, hb)) {
+                    hits.push({ tile, hb });
+                }
+            }
+        }
+    }
+    return hits;
+}
+
+function hitBlockFromBelow(tile) {
+    if (tile.type === 'barrier') return;
+    tile.bounceY = -10;
+
+    if (tile.type === 'question') {
+        tile.type = 'empty_block';
+        const spawnX = tile.tx * TILE_SIZE + TILE_SIZE / 2;
+        const spawnY = (tile.ty - 1) * TILE_SIZE;
+
+        if (tile.content === 'coin') {
+            sound.coin();
+            player.coins++;
+            player.score += 100;
+            spawnParticles(spawnX, spawnY, '#facc15', 10, 180);
+            addFloatingText(spawnX, spawnY, '+100 🪙', '#fde047');
+        } else if (tile.content === 'mushroom') {
+            sound.powerup();
+            items.push({
+                type: 'mushroom',
+                x: tile.tx * TILE_SIZE + 5,
+                y: spawnY,
+                vx: 95,
+                vy: -150,
+                width: 34,
+                height: 34,
+                collected: false
+            });
+        } else if (tile.content === 'flower') {
+            sound.powerup();
+            items.push({
+                type: 'flower',
+                x: tile.tx * TILE_SIZE + 5,
+                y: spawnY,
+                vx: 0,
+                vy: -120,
+                width: 34,
+                height: 34,
+                collected: false
+            });
+        }
+    } else if (tile.type === 'brick') {
+        if (player.powerState > 0) {
+            sound.breakBlock();
+            deleteTile(tile.tx, tile.ty);
+            player.score += 50;
+            spawnParticles(
+                tile.tx * TILE_SIZE + TILE_SIZE / 2,
+                tile.ty * TILE_SIZE + TILE_SIZE / 2,
+                '#d97706',
+                14,
+                280
+            );
+            addFloatingText(tile.tx * TILE_SIZE + 20, tile.ty * TILE_SIZE, '+50', '#fb923c');
+        } else {
+            sound.bump();
+        }
+    } else {
+        sound.bump();
+    }
+}
+
+function updatePlayer(dt) {
+    if (player.invulnTimer > 0) player.invulnTimer -= dt;
+    if (player.fireCooldown > 0) player.fireCooldown -= dt;
+    if (player.dashCooldown > 0) player.dashCooldown = Math.max(0, player.dashCooldown - dt);
+
+    // تحديث أثر الداش (Afterimage)
+    for (let i = player.dashTrail.length - 1; i >= 0; i--) {
+        player.dashTrail[i].alpha -= dt * 5.5;
+        if (player.dashTrail[i].alpha <= 0) player.dashTrail.splice(i, 1);
+    }
+
+    // تفعيل حركة الداش (Dash)
+    if (keys.dashPressed && player.dashCooldown <= 0 && player.dashTimer <= 0) {
+        player.dashTimer = 0.18;
+        player.dashCooldown = 0.65;
+        player.vy = 0;
+        player.vx = player.facing * 760;
+        sound.dash();
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#22d3ee', 12, 220);
+    }
+    keys.dashPressed = false;
+
+    if (player.dashTimer > 0) {
+        player.dashTimer -= dt;
+        player.vx = player.facing * 760;
+        player.vy = 0;
+        player.dashTrail.push({
+            x: player.x,
+            y: player.y,
+            width: player.width,
+            height: player.height,
+            alpha: 0.8
+        });
+    } else {
+        const isSprinting = keys.action;
+        const maxSpeed = isSprinting ? 360 : 270;
+        const accel = player.grounded ? 2000 : 1350;
+        const friction = player.grounded ? 1800 : 420;
+
+        if (keys.left && !keys.right) {
+            player.vx -= accel * dt;
+            if (player.vx < -maxSpeed) player.vx = -maxSpeed;
+            player.facing = -1;
+        } else if (keys.right && !keys.left) {
+            player.vx += accel * dt;
+            if (player.vx > maxSpeed) player.vx = maxSpeed;
+            player.facing = 1;
+        } else {
+            if (Math.abs(player.vx) <= friction * dt) {
+                player.vx = 0;
+            } else {
+                player.vx -= Math.sign(player.vx) * friction * dt;
+            }
+        }
+    }
+
+    // إطلاق كرات النار عند امتلاك قوة زهرة النار
+    if (keys.actionPressed && player.powerState === 2 && player.fireCooldown <= 0) {
+        player.fireCooldown = 0.35;
+        sound.fireball();
+        fireballs.push({
+            x: player.facing === 1 ? player.x + player.width : player.x - 14,
+            y: player.y + player.height * 0.4,
+            vx: player.facing * 520,
+            vy: 150,
+            width: 14,
+            height: 14,
+            alive: true,
+            bounces: 0
+        });
+    }
+    keys.actionPressed = false;
+
+    // Coyote time & Jump buffer
+    if (player.grounded) {
+        player.coyoteTimer = 0.1;
+    } else {
+        player.coyoteTimer -= dt;
+    }
+
+    if (keys.jumpPressed) {
+        player.jumpBufferTimer = 0.12;
+        keys.jumpPressed = false;
+    } else {
+        player.jumpBufferTimer -= dt;
+    }
+
+    // نظام القفز الثلاثي (3 قفزات، وتُشحن بالكامل فقط عند ملامسة الأرض)
+    if (player.jumpBufferTimer > 0 && player.jumpsRemaining > 0) {
+        const jumpIndex = player.maxJumps - player.jumpsRemaining + 1; // 1, 2, or 3
+        player.jumpsRemaining--;
+
+        const jumpPower = jumpIndex === 1 ? -720 : (jumpIndex === 2 ? -670 : -630);
+        player.vy = jumpPower;
+        player.grounded = false;
+        player.coyoteTimer = 0;
+        player.jumpBufferTimer = 0;
+        player.dashTimer = 0;
+
+        sound.jump(player.powerState > 0, jumpIndex);
+
+        if (jumpIndex === 1) {
+            spawnParticles(player.x + player.width / 2, player.y + player.height, '#ffffff', 6, 95);
+        } else if (jumpIndex === 2) {
+            spawnParticles(player.x + player.width / 2, player.y + player.height, '#38bdf8', 10, 145);
+        } else {
+            spawnParticles(player.x + player.width / 2, player.y + player.height, '#facc15', 14, 190);
+        }
+    }
+
+    // قفز متغير الارتفاع
+    if (!keys.jump && player.vy < -280 && player.dashTimer <= 0) {
+        player.vy += 2600 * dt;
+    }
+
+    // الجاذبية
+    if (player.dashTimer <= 0) {
+        player.vy += GRAVITY * dt;
+        if (player.vy > MAX_FALL_SPEED) player.vy = MAX_FALL_SPEED;
+    }
+
+    // الحركة الأفقية والتصادم
+    player.x += player.vx * dt;
+    const hitsX = checkTileCollision(player);
+    for (const { hb } of hitsX) {
+        if (player.vx > 0) {
+            player.x = hb.x - player.width;
+            player.vx = 0;
+            player.dashTimer = 0;
+        } else if (player.vx < 0) {
+            player.x = hb.x + hb.width;
+            player.vx = 0;
+            player.dashTimer = 0;
+        }
+    }
+
+    // الحركة العمودية والتصادم
+    const wasGrounded = player.grounded;
+    player.grounded = false;
+    player.y += player.vy * dt;
+    const hitsY = checkTileCollision(player);
+    for (const { tile, hb } of hitsY) {
+        if (player.vy > 0) {
+            player.y = hb.y - player.height;
+            player.vy = 0;
+            player.grounded = true;
+            // إعادة شحن جميع القفزات الثلاث فور ملامسة الأرض أو أي منصة!
+            player.jumpsRemaining = player.maxJumps;
+            if (!wasGrounded) {
+                spawnParticles(player.x + player.width / 2, player.y + player.height, '#e2e8f0', 4, 70);
+            }
+        } else if (player.vy < 0) {
+            player.y = hb.y + hb.height;
+            player.vy = 0;
+            hitBlockFromBelow(tile);
+        }
+    }
+
+    // الأنيميشن
+    if (Math.abs(player.vx) > 20 && player.grounded) {
+        player.animTimer += dt * (Math.abs(player.vx) / 140);
+        if (player.animTimer >= 0.14) {
+            player.animTimer = 0;
+            player.animFrame = (player.animFrame + 1) % 3;
+        }
+    } else {
+        player.animFrame = 0;
+    }
+
+    // المسافة والنقاط
+    const currentDist = Math.max(0, Math.floor((player.x - 120) / (TILE_SIZE * 0.5)));
+    if (currentDist > player.maxDistance) {
+        const diff = currentDist - player.maxDistance;
+        player.maxDistance = currentDist;
+        player.score += diff * 5;
+    }
+
+    // السقوط في الحفرة
+    if (player.y > 19 * TILE_SIZE) {
+        damagePlayer(true);
+    }
+}
+
+function damagePlayer(instantPit = false) {
+    if (!instantPit && (player.invulnTimer > 0 || player.dashTimer > 0)) return;
+
+    if (!instantPit && player.powerState > 0) {
+        player.powerState = 0;
+        player.height = 42;
+        player.invulnTimer = 1.6;
+        camera.shake = 0.25;
+        sound.hurt();
+        spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#f87171', 12, 200);
+        addFloatingText(player.x, player.y - 10, 'فقدت القوة!', '#fca5a5');
+        return;
+    }
+
+    player.lives--;
+    camera.shake = 0.35;
+    sound.hurt();
+
+    if (player.lives <= 0) {
+        triggerGameOver(instantPit ? 'سقط شاريو في الهاوية!' : 'نفدت جميع أرواح شاريو!');
+    } else {
+        player.x = checkpoint.x;
+        player.y = checkpoint.y - 60;
+        player.vx = 0;
+        player.vy = 0;
+        player.powerState = 0;
+        player.height = 42;
+        player.invulnTimer = 2.0;
+        player.jumpsRemaining = player.maxJumps;
+        player.dashTimer = 0;
+        showToast(`العودة لنقطة التفتيش! تبقى لديك ${player.lives} ❤️`);
+    }
+}
+
+function setPlayerPower(newState) {
+    const oldHeight = player.height;
+    player.powerState = newState;
+    player.height = newState > 0 ? 54 : 42;
+    player.y -= (player.height - oldHeight);
+}
+
+// ============================================================================
+// 8. تحديث الكائنات والأعداء والشخصيات المساعدة
+// ============================================================================
+function updateEntities(dt) {
+    for (const tile of tiles.values()) {
+        if (tile.bounceY < 0) {
+            tile.bounceY += 65 * dt;
+            if (tile.bounceY > 0) tile.bounceY = 0;
+        }
+    }
+
+    // نقاط التفتيش (Checkpoints)
+    for (const cp of checkpointsList) {
+        if (!cp.activated && player.x + player.width >= cp.x - 16) {
+            cp.activated = true;
+            checkpoint = {
+                x: cp.x - 16,
+                y: cp.y - player.height,
+                score: player.score,
+                coins: player.coins,
+                powerState: player.powerState
+            };
+            player.score += 500;
+            sound.checkpoint();
+            spawnParticles(cp.x, cp.y - 60, '#a855f7', 20, 260);
+            addFloatingText(cp.x, cp.y - 80, '+500 نقطة تفتيش!', '#facc15');
+            showToast('🚩 تم حفظ نقطة التفتيش بنجاح!');
+        }
+        if (cp.activated && cp.flagRaise < 1) {
+            cp.flagRaise = Math.min(1, cp.flagRaise + dt * 2.5);
+        }
+    }
+
+    // الشخصيات المساعدة (NPCs)
+    for (const npc of npcs) {
+        npc.bobTimer += dt * 4;
+        const dist = Math.hypot((player.x + player.width / 2) - (npc.x + npc.width / 2), player.y - npc.y);
+        npc.nearPlayer = dist < 135;
+
+        if (npc.nearPlayer && !npc.gifted) {
+            npc.gifted = true;
+            sound.npcTalk();
+            spawnParticles(npc.x + 17, npc.y, '#c084fc', 14, 180);
+
+            if (npc.giftType === 'heart') {
+                player.lives++;
+                addFloatingText(npc.x, npc.y - 30, '+1 روح إضافية ❤️', '#fb7185');
+            } else if (npc.giftType === 'flower') {
+                items.push({
+                    type: 'flower',
+                    x: npc.x,
+                    y: npc.y - 45,
+                    vx: 0,
+                    vy: -180,
+                    width: 34,
+                    height: 34,
+                    collected: false
+                });
+            } else if (npc.giftType === 'mushroom') {
+                items.push({
+                    type: 'mushroom',
+                    x: npc.x,
+                    y: npc.y - 45,
+                    vx: 80,
+                    vy: -180,
+                    width: 34,
+                    height: 34,
+                    collected: false
+                });
+            } else {
+                for (let c = 0; c < 3; c++) {
+                    items.push({
+                        type: 'coin',
+                        x: npc.x + (c - 1) * 28,
+                        y: npc.y - 50,
+                        vx: 0,
+                        vy: 0,
+                        width: 24,
+                        height: 24,
+                        collected: false,
+                        bob: c
+                    });
+                }
+            }
+        }
+    }
+
+    // العناصر والعملات
+    for (const item of items) {
+        if (item.collected) continue;
+
+        if (item.type === 'coin') {
+            item.bob = (item.bob || 0) + dt * 5;
+        } else if (item.type === 'mushroom') {
+            item.vy += GRAVITY * dt;
+            item.x += item.vx * dt;
+            for (const { hb } of checkTileCollision(item)) {
+                item.vx = -item.vx;
+                item.x += item.vx * dt * 2;
+            }
+            item.y += item.vy * dt;
+            for (const { hb } of checkTileCollision(item)) {
+                if (item.vy > 0) {
+                    item.y = hb.y - item.height;
+                    item.vy = 0;
+                }
+            }
+        } else if (item.type === 'flower') {
+            if (item.vy < 0) {
+                item.vy += 400 * dt;
+                item.y += item.vy * dt;
+            }
+        }
+
+        if (rectsOverlap(player, item)) {
+            item.collected = true;
+            if (item.type === 'coin') {
+                sound.coin();
+                player.coins++;
+                player.score += 100;
+                spawnParticles(item.x + 12, item.y + 12, '#facc15', 6, 120);
+                addFloatingText(item.x, item.y, '+100', '#fde047');
+            } else if (item.type === 'mushroom') {
+                sound.powerup();
+                if (player.powerState < 1) setPlayerPower(1);
+                player.score += 500;
+                spawnParticles(item.x + 17, item.y + 17, '#ef4444', 12, 180);
+                addFloatingText(item.x, item.y - 10, 'شاريو العملاق! +500', '#fca5a5');
+            } else if (item.type === 'flower') {
+                sound.powerup();
+                setPlayerPower(2);
+                player.score += 800;
+                spawnParticles(item.x + 17, item.y + 17, '#f97316', 14, 200);
+                addFloatingText(item.x, item.y - 10, 'قوة النار! 🔥 +800', '#fdba74');
+            }
+        }
+    }
+
+    // كرات النار
+    for (const fb of fireballs) {
+        if (!fb.alive) continue;
+        fb.vy += GRAVITY * 0.85 * dt;
+        fb.x += fb.vx * dt;
+        if (checkTileCollision(fb).length > 0) {
+            fb.alive = false;
+            spawnParticles(fb.x, fb.y, '#f97316', 8, 150);
+            continue;
+        }
+        fb.y += fb.vy * dt;
+        const hitsY = checkTileCollision(fb);
+        if (hitsY.length > 0) {
+            if (fb.vy > 0) {
+                fb.y = hitsY[0].hb.y - fb.height;
+                fb.vy = -340;
+                fb.bounces++;
+                if (fb.bounces > 4) fb.alive = false;
+            } else {
+                fb.alive = false;
+            }
+        }
+
+        for (const enemy of enemies) {
+            if (enemy.alive && enemy.squished <= 0 && rectsOverlap(fb, enemy)) {
+                fb.alive = false;
+                enemy.alive = false;
+                player.score += 200;
+                sound.stomp();
+                spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#fb923c', 14, 220);
+                addFloatingText(enemy.x, enemy.y - 10, '+200 🔥', '#fdba74');
+                break;
+            }
+        }
+    }
+
+    // الأعداء (Mobs)
+    for (const enemy of enemies) {
+        if (!enemy.alive) continue;
+
+        if (enemy.squished > 0) {
+            enemy.squished -= dt;
+            if (enemy.squished <= 0) enemy.alive = false;
+            continue;
+        }
+
+        if (enemy.x > camera.x + canvas.width + 250) continue;
+
+        enemy.timer += dt;
+
+        if (enemy.type === 'bat') {
+            enemy.x += enemy.vx * dt;
+            enemy.y = enemy.baseY + Math.sin(enemy.timer * 4) * 42;
+        } else if (enemy.type === 'plant') {
+            const offset = Math.max(0, Math.sin(enemy.timer * 2.2)) * 34;
+            enemy.y = enemy.baseY - offset;
+        } else {
+            enemy.vy += GRAVITY * dt;
+            enemy.x += enemy.vx * dt;
+
+            const wallHits = checkTileCollision(enemy);
+            if (wallHits.length > 0) {
+                enemy.vx = -enemy.vx;
+                enemy.x += enemy.vx * dt * 2;
+            }
+
+            enemy.y += enemy.vy * dt;
+            const floorHits = checkTileCollision(enemy);
+            let grounded = false;
+            for (const { hb } of floorHits) {
+                if (enemy.vy > 0) {
+                    enemy.y = hb.y - enemy.height;
+                    enemy.vy = 0;
+                    grounded = true;
+                }
+            }
+
+            if (grounded && !enemy.shellMoving) {
+                const lookAheadX = enemy.vx > 0 ? enemy.x + enemy.width + 4 : enemy.x - 4;
+                const footTy = Math.floor((enemy.y + enemy.height + 6) / TILE_SIZE);
+                const aheadTx = Math.floor(lookAheadX / TILE_SIZE);
+                if (!getTile(aheadTx, footTy)) {
+                    enemy.vx = -enemy.vx;
+                }
+            }
+
+            if (enemy.type === 'koopa' && enemy.shellMoving) {
+                for (const other of enemies) {
+                    if (other !== enemy && other.alive && other.squished <= 0 && rectsOverlap(enemy, other)) {
+                        other.alive = false;
+                        player.score += 200;
+                        sound.stomp();
+                        spawnParticles(other.x + 17, other.y + 17, '#facc15', 10, 200);
+                        addFloatingText(other.x, other.y - 10, '+200 💥', '#fde047');
+                    }
+                }
+            }
+        }
+
+        if (rectsOverlap(player, enemy)) {
+            // الداش السريع يسحق الأعداء فوراً
+            if (player.dashTimer > 0 && enemy.type !== 'plant') {
+                enemy.alive = false;
+                player.score += 200;
+                sound.stomp();
+                spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#22d3ee', 14, 240);
+                addFloatingText(enemy.x, enemy.y - 10, '+200 ⚡', '#67e8f9');
+                continue;
+            }
+
+            const playerBottom = player.y + player.height;
+            const isStomping = player.vy > 0 && (playerBottom - player.vy * dt) <= enemy.y + enemy.height * 0.55;
+
+            if (isStomping && enemy.type !== 'plant') {
+                player.vy = -490;
+                // استعادة قفزة جوية عند سحق عدو من الأعلى!
+                if (player.jumpsRemaining < player.maxJumps) {
+                    player.jumpsRemaining++;
+                }
+                sound.stomp();
+
+                if (enemy.type === 'koopa' && !enemy.shellState) {
+                    enemy.shellState = true;
+                    enemy.shellMoving = false;
+                    enemy.height = 28;
+                    enemy.y += 14;
+                    enemy.vx = 0;
+                    player.score += 150;
+                    addFloatingText(enemy.x, enemy.y - 10, '+150', '#4ade80');
+                } else if (enemy.type === 'koopa' && enemy.shellState && !enemy.shellMoving) {
+                    enemy.shellMoving = true;
+                    enemy.vx = (player.x < enemy.x ? 1 : -1) * 430;
+                    player.score += 100;
+                } else {
+                    enemy.squished = 0.25;
+                    player.score += 150;
+                    spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#a855f7', 10, 160);
+                    addFloatingText(enemy.x, enemy.y - 10, '+150', '#fde047');
+                }
+            } else if (enemy.type === 'koopa' && enemy.shellState && !enemy.shellMoving) {
+                enemy.shellMoving = true;
+                enemy.vx = (player.x < enemy.x ? 1 : -1) * 430;
+                sound.stomp();
+            } else {
+                damagePlayer(false);
+            }
+        }
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.vy += 600 * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y -= 48 * dt;
+        ft.life -= dt;
+        if (ft.life <= 0) floatingTexts.splice(i, 1);
+    }
+}
+
+// ============================================================================
+// 9. الرسم على الكانفاس (Canvas Rendering)
+// ============================================================================
+function getCurrentBiome() {
+    const biomeIndex = Math.floor(player.maxDistance / 250) % BIOMES.length;
+    return BIOMES[biomeIndex];
+}
+
+function drawRoundedRect(x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(x, y, w, h, r);
+    } else {
+        ctx.rect(x, y, w, h);
+    }
+    ctx.fill();
+}
+
+function drawBackground(biome) {
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    skyGrad.addColorStop(0, biome.skyTop);
+    skyGrad.addColorStop(1, biome.skyBottom);
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (biome.stars) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        for (let i = 0; i < 45; i++) {
+            const sx = ((i * 197 - camera.x * 0.05) % canvas.width + canvas.width) % canvas.width;
+            const sy = (i * 89) % (canvas.height * 0.55);
+            const size = (i % 3) + 1.5;
+            ctx.beginPath();
+            ctx.arc(sx, sy, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    ctx.fillStyle = biome.hillDark;
+    const hillSpan = 420;
+    const startHill = Math.floor((camera.x * 0.2) / hillSpan) - 1;
+    const endHill = startHill + Math.ceil(canvas.width / hillSpan) + 3;
+    for (let h = startHill; h <= endHill; h++) {
+        const hx = h * hillSpan - camera.x * 0.2;
+        const hy = canvas.height - 90;
+        ctx.beginPath();
+        ctx.moveTo(hx - 60, canvas.height);
+        ctx.quadraticCurveTo(hx + hillSpan * 0.5, hy - 180, hx + hillSpan + 60, canvas.height);
+        ctx.fill();
+    }
+
+    ctx.fillStyle = biome.hillColor;
+    const nearSpan = 300;
+    const startNear = Math.floor((camera.x * 0.4) / nearSpan) - 1;
+    const endNear = startNear + Math.ceil(canvas.width / nearSpan) + 3;
+    for (let h = startNear; h <= endNear; h++) {
+        const hx = h * nearSpan - camera.x * 0.4;
+        const hy = canvas.height - 50;
+        ctx.beginPath();
+        ctx.moveTo(hx - 40, canvas.height);
+        ctx.quadraticCurveTo(hx + nearSpan * 0.5, hy - 110, hx + nearSpan + 40, canvas.height);
+        ctx.fill();
+    }
+
+    ctx.fillStyle = biome.stars ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.85)';
+    for (const c of clouds) {
+        const cx = ((c.x - camera.x * 0.15) % (canvas.width + 300) + (canvas.width + 300)) % (canvas.width + 300) - 150;
+        ctx.beginPath();
+        ctx.arc(cx, c.y, c.r, 0, Math.PI * 2);
+        ctx.arc(cx + c.r * 0.8, c.y - c.r * 0.2, c.r * 0.85, 0, Math.PI * 2);
+        ctx.arc(cx + c.r * 1.6, c.y, c.r * 0.75, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawTiles(biome) {
+    const startTx = Math.floor(camera.x / TILE_SIZE) - 1;
+    const endTx = Math.ceil((camera.x + canvas.width) / TILE_SIZE) + 1;
+
+    for (let tx = startTx; tx <= endTx; tx++) {
+        for (let ty = -2; ty < 18; ty++) {
+            const tile = getTile(tx, ty);
+            if (!tile || tile.type === 'barrier') continue;
+
+            const x = tx * TILE_SIZE;
+            const y = ty * TILE_SIZE + (tile.bounceY || 0);
+
+            if (tile.type === 'ground_top') {
+                ctx.fillStyle = biome.groundBody;
+                ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = biome.groundTop;
+                drawRoundedRect(x, y, TILE_SIZE, 14, 4);
+                ctx.fillStyle = biome.groundAccent;
+                ctx.fillRect(x + 8, y + 22, 8, 6);
+                ctx.fillRect(x + 26, y + 30, 10, 6);
+            } else if (tile.type === 'ground') {
+                ctx.fillStyle = biome.groundBody;
+                ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = biome.groundAccent;
+                ctx.fillRect(x + 6, y + 10, 10, 8);
+                ctx.fillRect(x + 24, y + 26, 12, 8);
+            } else if (tile.type === 'brick') {
+                ctx.fillStyle = '#c2410c';
+                drawRoundedRect(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2, 5);
+                ctx.strokeStyle = '#7c2d12';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                ctx.beginPath();
+                ctx.moveTo(x, y + TILE_SIZE / 2);
+                ctx.lineTo(x + TILE_SIZE, y + TILE_SIZE / 2);
+                ctx.moveTo(x + TILE_SIZE / 2, y);
+                ctx.lineTo(x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+                ctx.stroke();
+            } else if (tile.type === 'question') {
+                ctx.fillStyle = '#f59e0b';
+                drawRoundedRect(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2, 7);
+                ctx.strokeStyle = '#fef08a';
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '900 24px Cairo';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('؟', x + TILE_SIZE / 2, y + TILE_SIZE / 2 + 2);
+            } else if (tile.type === 'empty_block') {
+                ctx.fillStyle = '#64748b';
+                drawRoundedRect(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2, 6);
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+            } else if (tile.type.startsWith('pipe')) {
+                const isMid = tile.type.startsWith('pipe_mid');
+                const isLeft = tile.type.endsWith('_l');
+                const pipeY = isMid ? y - 16 : y;
+                const pipeH = isMid ? TILE_SIZE + 16 : TILE_SIZE;
+
+                const grad = ctx.createLinearGradient(x, pipeY, x + TILE_SIZE, pipeY);
+                if (isLeft) {
+                    grad.addColorStop(0, '#15803d');
+                    grad.addColorStop(0.5, '#4ade80');
+                    grad.addColorStop(1, '#22c55e');
+                } else {
+                    grad.addColorStop(0, '#22c55e');
+                    grad.addColorStop(0.7, '#16a34a');
+                    grad.addColorStop(1, '#14532d');
+                }
+
+                ctx.fillStyle = grad;
+                ctx.fillRect(x + (isLeft ? 2 : 0), pipeY + 12, TILE_SIZE - 2, pipeH - 12);
+                ctx.strokeStyle = '#052e16';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x + (isLeft ? 2 : 0), pipeY + 12, TILE_SIZE - 2, pipeH - 12);
+
+                const overhang = isLeft ? -3 : 0;
+                drawRoundedRect(x + overhang, pipeY, TILE_SIZE + 3, 14, 4);
+                ctx.strokeRect(x + overhang, pipeY, TILE_SIZE + 3, 14);
+            }
+        }
+    }
+}
+
+function drawCheckpoints() {
+    for (const cp of checkpointsList) {
+        const poleHeight = 120;
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(cp.x - 3, cp.y - poleHeight, 6, poleHeight);
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(cp.x, cp.y - poleHeight, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        const flagY = cp.y - 36 - cp.flagRaise * (poleHeight - 46);
+        ctx.fillStyle = cp.activated ? '#a855f7' : '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(cp.x + 3, flagY);
+        ctx.lineTo(cp.x + 48, flagY + 15);
+        ctx.lineTo(cp.x + 3, flagY + 30);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 11px Cairo';
+        ctx.textAlign = 'center';
+        ctx.fillText(cp.activated ? '✓' : 'CP', cp.x + 18, flagY + 19);
+    }
+}
+
+function drawNPCs() {
+    for (const npc of npcs) {
+        const bob = Math.sin(npc.bobTimer) * 3;
+        const x = npc.x;
+        const y = npc.y + bob;
+
+        ctx.fillStyle = '#7e22ce';
+        drawRoundedRect(x + 4, y + 18, 26, 26, 8);
+        ctx.fillStyle = '#fed7aa';
+        ctx.beginPath();
+        ctx.arc(x + 17, y + 12, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#facc15';
+        drawRoundedRect(x + 5, y - 2, 24, 10, 5);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(x + 12, y + 10, 3, 4);
+        ctx.fillRect(x + 19, y + 10, 3, 4);
+
+        if (!npc.gifted) {
+            ctx.fillStyle = '#fde047';
+            ctx.font = '900 18px Cairo';
+            ctx.textAlign = 'center';
+            ctx.fillText('🎁', x + 17, y - 10 + bob);
+        }
+
+        if (npc.nearPlayer) {
+            ctx.font = 'bold 13px Cairo';
+            const textWidth = ctx.measureText(npc.dialogue).width;
+            const boxW = Math.min(290, textWidth + 24);
+            const boxH = 42;
+            const bx = x + 17 - boxW / 2;
+            const by = y - 62;
+
+            ctx.fillStyle = 'rgba(17, 9, 36, 0.94)';
+            drawRoundedRect(bx, by, boxW, boxH, 12);
+            ctx.strokeStyle = '#facc15';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(bx, by, boxW, boxH);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(npc.dialogue, x + 17, by + boxH / 2, boxW - 14);
+        }
+    }
+}
+
+function drawItems() {
+    for (const item of items) {
+        if (item.collected) continue;
+        if (item.type === 'coin') {
+            const offset = Math.sin(item.bob) * 4;
+            ctx.fillStyle = '#facc15';
+            ctx.beginPath();
+            ctx.ellipse(item.x + 12, item.y + 12 + offset, 10, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ca8a04';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#fef08a';
+            ctx.fillRect(item.x + 10, item.y + 6 + offset, 4, 12);
+        } else if (item.type === 'mushroom') {
+            ctx.fillStyle = '#fef3c7';
+            drawRoundedRect(item.x + 8, item.y + 16, 18, 18, 5);
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(item.x + 17, item.y + 16, 16, Math.PI, 0);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(item.x + 11, item.y + 9, 4, 0, Math.PI * 2);
+            ctx.arc(item.x + 23, item.y + 9, 4, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (item.type === 'flower') {
+            ctx.fillStyle = '#22c55e';
+            ctx.fillRect(item.x + 15, item.y + 16, 4, 18);
+            ctx.fillStyle = '#f97316';
+            ctx.beginPath();
+            ctx.ellipse(item.x + 17, item.y + 12, 15, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.ellipse(item.x + 17, item.y + 12, 8, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+}
+
+function drawEnemies() {
+    for (const enemy of enemies) {
+        if (!enemy.alive) continue;
+
+        if (enemy.type === 'goomba') {
+            const h = enemy.squished > 0 ? 12 : enemy.height;
+            const y = enemy.squished > 0 ? enemy.y + enemy.height - 12 : enemy.y;
+            ctx.fillStyle = '#92400e';
+            ctx.beginPath();
+            ctx.arc(enemy.x + 17, y + h * 0.55, 17, Math.PI, 0);
+            ctx.fill();
+            ctx.fillStyle = '#fde68a';
+            drawRoundedRect(enemy.x + 7, y + h * 0.55, 20, h * 0.45, 4);
+            if (enemy.squished <= 0) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(enemy.x + 9, y + 10, 6, 7);
+                ctx.fillRect(enemy.x + 19, y + 10, 6, 7);
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(enemy.x + 11, y + 12, 3, 4);
+                ctx.fillRect(enemy.x + 20, y + 12, 3, 4);
+            }
+        } else if (enemy.type === 'koopa') {
+            if (enemy.shellState) {
+                ctx.fillStyle = '#16a34a';
+                drawRoundedRect(enemy.x + 2, enemy.y + 4, 30, 24, 12);
+                ctx.strokeStyle = '#fef08a';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(enemy.x + 6, enemy.y + 8, 22, 16);
+            } else {
+                ctx.fillStyle = '#16a34a';
+                drawRoundedRect(enemy.x + 4, enemy.y + 12, 26, 24, 10);
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                ctx.arc(enemy.vx > 0 ? enemy.x + 26 : enemy.x + 8, enemy.y + 12, 9, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (enemy.type === 'bat') {
+            const wingFlap = Math.sin(enemy.timer * 18) * 10;
+            ctx.fillStyle = '#6b21a8';
+            ctx.beginPath();
+            ctx.arc(enemy.x + 17, enemy.y + 14, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(enemy.x + 6, enemy.y + 12);
+            ctx.lineTo(enemy.x - 10, enemy.y + 4 + wingFlap);
+            ctx.lineTo(enemy.x + 4, enemy.y + 20);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(enemy.x + 28, enemy.y + 12);
+            ctx.lineTo(enemy.x + 44, enemy.y + 4 + wingFlap);
+            ctx.lineTo(enemy.x + 30, enemy.y + 20);
+            ctx.fill();
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(enemy.x + 11, enemy.y + 11, 4, 4);
+            ctx.fillRect(enemy.x + 19, enemy.y + 11, 4, 4);
+        } else if (enemy.type === 'plant') {
+            ctx.fillStyle = '#15803d';
+            ctx.fillRect(enemy.x + 14, enemy.y + 18, 6, 22);
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.arc(enemy.x + 17, enemy.y + 14, 14, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(enemy.x + 11, enemy.y + 10, 3, 0, Math.PI * 2);
+            ctx.arc(enemy.x + 23, enemy.y + 12, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+}
+
+function drawPlayer() {
+    // رسم أثر الداش
+    for (const tr of player.dashTrail) {
+        ctx.save();
+        ctx.globalAlpha = tr.alpha * 0.55;
+        ctx.fillStyle = '#22d3ee';
+        drawRoundedRect(tr.x, tr.y, tr.width, tr.height, 8);
+        ctx.restore();
+    }
+
+    if (player.invulnTimer > 0 && Math.floor(player.invulnTimer * 16) % 2 === 0) {
+        return;
+    }
+
+    ctx.save();
+    const centerX = player.x + player.width / 2;
+    ctx.translate(centerX, player.y);
+    ctx.scale(player.facing, 1);
+
+    if (player.dashTimer > 0) {
+        ctx.shadowColor = '#22d3ee';
+        ctx.shadowBlur = 16;
+    }
+
+    const h = player.height;
+    const isFire = player.powerState === 2;
+    const primaryColor = isFire ? '#ffffff' : '#ef4444';
+    const overallColor = isFire ? '#dc2626' : '#2563eb';
+
+    // الحذاء
+    const legSwing = player.grounded ? Math.sin(player.animFrame * 2) * 5 : 4;
+    ctx.fillStyle = '#78350f';
+    drawRoundedRect(-12 + legSwing, h - 8, 12, 8, 3);
+    drawRoundedRect(1 - legSwing, h - 8, 12, 8, 3);
+
+    // الجسم والملابس
+    ctx.fillStyle = primaryColor;
+    drawRoundedRect(-12, h * 0.42, 24, h * 0.44, 6);
+    ctx.fillStyle = overallColor;
+    drawRoundedRect(-10, h * 0.54, 20, h * 0.34, 5);
+
+    // أزرار ذهبية
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(-4, h * 0.62, 2.5, 0, Math.PI * 2);
+    ctx.arc(5, h * 0.62, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // الرأس والوجه
+    ctx.fillStyle = '#fed7aa';
+    drawRoundedRect(-11, h * 0.14, 22, h * 0.3, 8);
+
+    // العين
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(4, h * 0.21, 3.5, 6);
+
+    // القبعة المميزة
+    ctx.fillStyle = primaryColor;
+    drawRoundedRect(-13, h * 0.04, 26, 10, 5);
+    drawRoundedRect(-2, h * 0.1, 18, 5, 2);
+
+    ctx.restore();
+
+    // نقاط توضح القفزات المتبقية من 3 فوق رأس شاريو عند القفز
+    if (!player.grounded || player.jumpsRemaining < player.maxJumps) {
+        for (let i = 0; i < player.maxJumps; i++) {
+            const active = i < player.jumpsRemaining;
+            ctx.fillStyle = active ? '#facc15' : 'rgba(148, 163, 184, 0.35)';
+            ctx.beginPath();
+            ctx.arc(player.x + player.width / 2 + (i - 1) * 10, player.y - 10, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+}
+
+function drawFireballsAndParticles() {
+    for (const fb of fireballs) {
+        if (!fb.alive) continue;
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.arc(fb.x + 7, fb.y + 7, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.arc(fb.x + 7, fb.y + 7, 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+
+    for (const ft of floatingTexts) {
+        ctx.globalAlpha = Math.max(0, ft.life);
+        ctx.font = '900 16px Cairo';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(ft.text, ft.x + 1, ft.y + 1);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.globalAlpha = 1;
+}
+
+function render() {
+    const biome = getCurrentBiome();
+    drawBackground(biome);
+
+    ctx.save();
+    let shakeX = 0, shakeY = 0;
+    if (camera.shake > 0) {
+        shakeX = (Math.random() - 0.5) * 12;
+        shakeY = (Math.random() - 0.5) * 12;
+    }
+    ctx.translate(-Math.floor(camera.x + shakeX), -Math.floor(camera.y + shakeY));
+
+    drawTiles(biome);
+    drawCheckpoints();
+    drawNPCs();
+    drawItems();
+    drawEnemies();
+    drawPlayer();
+    drawFireballsAndParticles();
+
+    ctx.restore();
+}
+
+// ============================================================================
+// 10. تحديث واجهة المستخدم (HUD) وحلقة اللعبة
+// ============================================================================
+function updateHUD() {
+    document.getElementById('hudLives').textContent = player.lives;
+    document.getElementById('hudScore').textContent = String(player.score).padStart(6, '0');
+    document.getElementById('hudCoins').textContent = player.coins;
+    document.getElementById('hudDist').textContent = player.maxDistance + 'm';
+    document.getElementById('hudBiome').textContent = getCurrentBiome().name;
+
+    // تحديث نقاط القفز الثلاثي (×3)
+    const dotsContainer = document.getElementById('hudJumpDots');
+    if (dotsContainer) {
+        const dots = dotsContainer.children;
+        for (let i = 0; i < dots.length; i++) {
+            if (i < player.jumpsRemaining) {
+                dots[i].className = 'w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_8px_#facc15] transition-all';
+            } else {
+                dots[i].className = 'w-3 h-3 rounded-full bg-slate-700 border border-slate-500/40 transition-all';
+            }
+        }
+    }
+
+    const touchJumpLabel = document.getElementById('touchJumpLabel');
+    if (touchJumpLabel) {
+        touchJumpLabel.textContent = `قفز ${player.jumpsRemaining}/${player.maxJumps}`;
+    }
+
+    // تحديث حالة الداش
+    const dashStatus = document.getElementById('hudDashStatus');
+    if (dashStatus) {
+        if (player.dashCooldown <= 0) {
+            dashStatus.textContent = '⚡ جاهز';
+            dashStatus.className = 'font-black text-xs sm:text-sm text-cyan-300 mt-0.5';
+        } else {
+            dashStatus.textContent = player.dashCooldown.toFixed(1) + 's';
+            dashStatus.className = 'font-bold text-xs sm:text-sm text-slate-400 mt-0.5';
+        }
+    }
+}
+
+function updateCamera(dt) {
+    if (camera.shake > 0) camera.shake -= dt;
+
+    const targetX = Math.max(0, player.x - canvas.width * 0.32);
+    camera.x += (targetX - camera.x) * Math.min(1, dt * 8);
+
+    const groundPixelY = 14 * TILE_SIZE;
+    const targetY = Math.max(-150, groundPixelY - canvas.height * 0.85);
+    camera.y += (targetY - camera.y) * Math.min(1, dt * 6);
+
+    const currentChunk = Math.floor((camera.x + canvas.width) / (CHUNK_WIDTH_TILES * TILE_SIZE));
+    for (let c = currentChunk - 1; c <= currentChunk + 2; c++) {
+        if (c >= 0) generateChunk(c);
+    }
+
+    cleanupBehindCamera();
+}
+
+function gameLoop(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
+    lastTime = timestamp;
+
+    if (gameState === 'PLAYING') {
+        updatePlayer(dt);
+        updateEntities(dt);
+        updateCamera(dt);
+        updateHUD();
+    }
+
+    render();
+    requestAnimationFrame(gameLoop);
+}
+
+// ============================================================================
+// 11. بدء اللعبة، الإيقاف المؤقت، ونهاية اللعبة
+// ============================================================================
+function startNewGame() {
+    // الانتقال الفوري لحالة اللعب وإخفاء القوائم أولاً لضمان عدم توقف اللعبة لأي سبب
+    gameState = 'PLAYING';
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('pauseModal').classList.add('hidden');
+    document.getElementById('gameOverModal').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        document.getElementById('touchControls').classList.remove('hidden');
+    }
+
+    sound.init();
+
+    worldSeed = Math.floor(Math.random() * 1000000000) + Date.now();
+    rng = new SeededRandom(worldSeed);
+
+    tiles.clear();
+    generatedChunks.clear();
+    enemies = [];
+    items = [];
+    fireballs = [];
+    particles = [];
+    floatingTexts = [];
+    checkpointsList = [];
+    npcs = [];
+
+    clouds = [];
+    for (let i = 0; i < 10; i++) {
+        clouds.push({
+            x: rng.range(0, 1800),
+            y: rng.range(50, 220),
+            r: rng.range(24, 42)
+        });
+    }
+
+    player.x = 120;
+    player.y = 300;
+    player.vx = 0;
+    player.vy = 0;
+    player.height = 42;
+    player.facing = 1;
+    player.grounded = false;
+    player.jumpsRemaining = player.maxJumps;
+    player.dashTimer = 0;
+    player.dashCooldown = 0;
+    player.dashTrail = [];
+    player.powerState = 0;
+    player.invulnTimer = 0;
+    player.lives = 3;
+    player.score = 0;
+    player.coins = 0;
+    player.maxDistance = 0;
+
+    checkpoint = { x: 120, y: 300, score: 0, coins: 0, powerState: 0 };
+
+    camera.x = 0;
+    camera.y = 0;
+
+    generateChunk(0);
+    generateChunk(1);
+    generateChunk(2);
+
+    updateHUD();
+}
+
+function triggerGameOver(reason) {
+    gameState = 'GAMEOVER';
+    sound.gameOver();
+
+    let isNewRecord = false;
+    if (player.score > highScore) {
+        highScore = player.score;
+        try { localStorage.setItem('shario_highscore', highScore); } catch (e) {}
+        isNewRecord = true;
+    }
+    if (player.maxDistance > bestDistance) {
+        bestDistance = player.maxDistance;
+        try { localStorage.setItem('shario_bestdist', bestDistance); } catch (e) {}
+        isNewRecord = true;
+    }
+
+    updateStartScreenRecords();
+
+    document.getElementById('gameOverReason').textContent = reason;
+    document.getElementById('finalScore').textContent = player.score.toLocaleString();
+    document.getElementById('finalDist').textContent = player.maxDistance + 'm';
+    document.getElementById('finalCoins').textContent = player.coins;
+    document.getElementById('newRecordBadge').classList.toggle('hidden', !isNewRecord);
+    document.getElementById('gameOverModal').classList.remove('hidden');
+}
+
+function togglePause() {
+    if (gameState === 'PLAYING') {
+        gameState = 'PAUSED';
+        document.getElementById('pauseModal').classList.remove('hidden');
+    } else if (gameState === 'PAUSED') {
+        gameState = 'PLAYING';
+        document.getElementById('pauseModal').classList.add('hidden');
+    }
+}
+
+// ============================================================================
+// 12. مستمعو الأحداث (الماوس، اللمس، ولوحة المفاتيح)
+// ============================================================================
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function bindActionButton(id, callback) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', (e) => {
+        e.preventDefault();
+        callback();
+    });
+    el.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        callback();
+    }, { passive: false });
+}
+
+bindActionButton('btnStartGame', startNewGame);
+bindActionButton('btnPlayAgain', startNewGame);
+bindActionButton('btnRestartFromPause', startNewGame);
+bindActionButton('btnPause', togglePause);
+bindActionButton('btnResume', togglePause);
+
+bindActionButton('btnMute', () => {
+    const isMuted = sound.toggleMute();
+    document.getElementById('btnMute').textContent = isMuted ? '🔇' : '🔊';
+});
+
+bindActionButton('btnToggleTouch', () => {
+    document.getElementById('touchControls').classList.toggle('hidden');
+});
+
+// لوحة المفاتيح
+window.addEventListener('keydown', (e) => {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+        e.preventDefault();
+    }
+
+    // السماح ببدء اللعبة بزر Enter أو Space من شاشة البداية أو نهاية اللعبة
+    if ((gameState === 'MENU' || gameState === 'GAMEOVER') && (e.code === 'Enter' || e.code === 'Space')) {
+        startNewGame();
+        return;
+    }
+
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+        if (!keys.jump) keys.jumpPressed = true;
+        keys.jump = true;
+    }
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyE' || e.code === 'KeyX') {
+        if (!keys.dash) keys.dashPressed = true;
+        keys.dash = true;
+    }
+    if (e.code === 'KeyF' || e.code === 'KeyJ') {
+        if (!keys.action) keys.actionPressed = true;
+        keys.action = true;
+    }
+    if (e.code === 'Escape' || e.code === 'KeyP') {
+        if (gameState === 'PLAYING' || gameState === 'PAUSED') togglePause();
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = false;
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyE' || e.code === 'KeyX') keys.dash = false;
+    if (e.code === 'KeyF' || e.code === 'KeyJ') keys.action = false;
+});
+
+// أزرار اللمس المتعدد (Multi-Touch)
+function bindTouchButton(btnId, keyName, pressedKeyName = null) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+
+    const handleStart = (e) => {
+        e.preventDefault();
+        sound.init();
+        if (pressedKeyName && !keys[keyName]) {
+            keys[pressedKeyName] = true;
+        }
+        keys[keyName] = true;
+        btn.classList.add('active');
+    };
+
+    const handleEnd = (e) => {
+        e.preventDefault();
+        keys[keyName] = false;
+        btn.classList.remove('active');
+    };
+
+    btn.addEventListener('touchstart', handleStart, { passive: false });
+    btn.addEventListener('touchend', handleEnd, { passive: false });
+    btn.addEventListener('touchcancel', handleEnd, { passive: false });
+
+    btn.addEventListener('mousedown', handleStart);
+    btn.addEventListener('mouseup', handleEnd);
+    btn.addEventListener('mouseleave', handleEnd);
+}
+
+bindTouchButton('touchLeft', 'left');
+bindTouchButton('touchRight', 'right');
+bindTouchButton('touchJump', 'jump', 'jumpPressed');
+bindTouchButton('touchDash', 'dash', 'dashPressed');
+bindTouchButton('touchAction', 'action', 'actionPressed');
+
+// تشغيل الخلفية وحلقة اللعبة فور تحميل الصفحة
+window.addEventListener('load', () => {
+    generateChunk(0);
+    generateChunk(1);
+    requestAnimationFrame(gameLoop);
+});
+</script>
+</body>
+</html>
