@@ -1,1 +1,643 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عالم الألعاب | العب مجاناً أونلاين</title>
+    <meta name="description" content="منصة ألعاب مجانية أونلاين. العب أفضل الألعاب مباشرة من متصفحك بدون تحميل.">
+    <!-- خطوط -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Cairo', 'sans-serif'] },
+                    colors: {
+                        dark: '#0a0e1a',
+                        panel: '#131a2b',
+                        accent: '#6366f1',
+                        accent2: '#22d3ee',
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-12px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0a0e1a;
+            background-image:
+                radial-gradient(circle at 15% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 45%),
+                radial-gradient(circle at 85% 75%, rgba(34, 211, 238, 0.12) 0%, transparent 45%),
+                linear-gradient(180deg, #0a0e1a 0%, #131a2b 50%, #0a0e1a 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
 
+        .glass-card {
+            background: rgba(19, 26, 43, 0.6);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+            transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-6px) scale(1.02);
+            border-color: rgba(99, 102, 241, 0.7);
+            box-shadow: 0 20px 40px -12px rgba(99, 102, 241, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+        }
+
+        /* حاوية الإعلانات */
+        .ad-slot {
+            background: rgba(19, 26, 43, 0.5);
+            border: 1px dashed rgba(99, 102, 241, 0.35);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 0.75rem;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .floating-particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.15;
+            animation: rise linear infinite;
+        }
+        @keyframes rise {
+            0% { transform: translateY(105vh) rotate(0deg) scale(0.8); opacity: 0; }
+            20% { opacity: 0.2; }
+            80% { opacity: 0.15; }
+            100% { transform: translateY(-10vh) rotate(360deg) scale(1.1); opacity: 0; }
+        }
+
+        #game-stage {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: #0a0e1a;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: none;
+        }
+        #game-stage.active { display: block; animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+
+    <!-- ✅ ضع هنا كود Google AdSense (بعد الموافقة على الموقع) -->
+    <!--
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+    -->
+</head>
+<body class="text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
+
+    <div id="particles-container" aria-hidden="true"></div>
+
+    <!-- ===== الواجهة الرئيسية ===== -->
+    <div id="hub-view" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+
+        <!-- الشريط العلوي -->
+        <nav class="flex flex-wrap items-center justify-between gap-3 mb-8">
+            <div class="flex items-center gap-2">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-xl shadow-lg shadow-indigo-500/30">
+                    🎮
+                </div>
+                <span class="font-extrabold text-lg text-white">عالم الألعاب</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-950/60 border border-indigo-500/25 text-indigo-200 text-xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="repo-status-badge">جاري التحميل...</span>
+                </div>
+                <button id="toggle-guide-btn" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 transition flex items-center gap-2">
+                    <span>➕ إضافة لعبة</span>
+                </button>
+                <button id="open-settings-btn" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 transition" title="إعدادات المستودع">
+                    ⚙️
+                </button>
+            </div>
+        </nav>
+
+        <!-- ✅ إعلان أعلى الصفحة (Banner 728x90 أو Responsive) -->
+        <div class="ad-slot h-24 mb-8">
+            <!--
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                 data-ad-slot="1111111111"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            -->
+            مساحة إعلانية — أعلى الصفحة
+        </div>
+
+        <!-- الترحيب -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-indigo-300 via-cyan-200 to-indigo-300 bg-clip-text text-transparent mb-4 leading-tight">
+                العب مجاناً أونلاين
+            </h1>
+            <p class="max-w-2xl mx-auto text-base text-slate-300/85 leading-relaxed">
+                مجموعة متجددة من الألعاب المجانية مباشرة من متصفحك — بدون تحميل وبدون تسجيل.
+            </p>
+
+            <div class="mt-6 inline-flex items-center gap-4 px-5 py-2 rounded-2xl bg-white/5 border border-white/10 text-sm text-slate-300">
+                <span>الألعاب المتاحة: <strong id="games-count" class="text-cyan-400 text-base">0</strong></span>
+                <span class="text-white/20">|</span>
+                <button id="refresh-games-btn" class="text-indigo-300 hover:text-cyan-300 transition flex items-center gap-1">
+                    🔄 <span>تحديث</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- دليل الإضافة -->
+        <section id="guide-panel" class="hidden mb-10 glass-card rounded-3xl p-6 sm:p-8 border-indigo-500/40">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <h2 class="text-lg font-bold text-indigo-300">✨ كيف تضيف لعبة جديدة؟</h2>
+                <button id="close-guide-btn" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-200/90">
+                <div class="p-4 rounded-2xl bg-black/25 border border-white/5">
+                    <div class="text-indigo-400 font-bold mb-1">1. أنشئ مجلداً باسم اللعبة</div>
+                    <p>في مستودع GitHub، أنشئ مجلداً جديداً بجانب <code class="text-indigo-300 bg-white/10 px-1.5 py-0.5 rounded">index.html</code> الرئيسي.</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-black/25 border border-white/5">
+                    <div class="text-indigo-400 font-bold mb-1">2. ضع ملف اللعبة بداخله</div>
+                    <p>ارفع <code class="text-indigo-300 bg-white/10 px-1.5 py-0.5 rounded">index.html</code> داخل المجلد مع أي صور أو أصوات.</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-black/25 border border-white/5">
+                    <div class="text-indigo-400 font-bold mb-1">3. ظهور فوري</div>
+                    <p>ستكتشف الصفحة المجلد تلقائياً وتعرضه كبطاقة قابلة للعب مباشرة.</p>
+                </div>
+            </div>
+        </section>
+
+        <div id="status-banner" class="hidden mb-8 p-4 rounded-2xl bg-indigo-500/15 border border-indigo-500/40 text-indigo-200 text-sm text-center"></div>
+
+        <main>
+            <!-- ✅ إعلان جانبي / بين المحتوى (Responsive) -->
+            <div class="ad-slot h-20 mb-8">
+                <!--
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                     data-ad-slot="2222222222"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+                -->
+                مساحة إعلانية — قبل شبكة الألعاب
+            </div>
+
+            <div id="loading-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="glass-card rounded-3xl p-6 h-52 animate-pulse"></div>
+                <div class="glass-card rounded-3xl p-6 h-52 animate-pulse"></div>
+                <div class="glass-card rounded-3xl p-6 h-52 animate-pulse"></div>
+            </div>
+
+            <div id="games-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+            <div id="empty-state" class="hidden text-center py-16 glass-card rounded-3xl p-8 max-w-xl mx-auto">
+                <div class="text-5xl mb-4">🎮</div>
+                <h3 class="text-xl font-bold text-indigo-200 mb-2">لا توجد ألعاب بعد</h3>
+                <p class="text-slate-300/80 text-sm leading-relaxed mb-6">
+                    ارفع مجلداً يحتوي على ملف <code class="text-indigo-300">index.html</code> بجانب هذه الصفحة ليظهر تلقائياً.
+                </p>
+                <button onclick="document.getElementById('guide-panel').classList.remove('hidden')" class="px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 transition">
+                    عرض طريقة الإضافة
+                </button>
+            </div>
+        </main>
+
+        <!-- ✅ إعلان أسفل الصفحة -->
+        <div class="ad-slot h-24 mt-12">
+            <!--
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                 data-ad-slot="3333333333"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            -->
+            مساحة إعلانية — أسفل الصفحة
+        </div>
+
+        <footer class="mt-12 pt-8 border-t border-white/10 text-center text-xs sm:text-sm text-slate-400/70">
+            <p>© <span id="year"></span> عالم الألعاب — جميع الحقوق محفوظة.</p>
+        </footer>
+    </div>
+
+    <!-- نافذة الإعدادات -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-card rounded-3xl max-w-md w-full p-6 sm:p-8 border-indigo-500/40">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-indigo-300">إعدادات المستودع</h3>
+                <button id="close-settings-btn" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+            <p class="text-xs text-slate-300/80 mb-5 leading-relaxed">
+                يُكتشف المستودع تلقائياً على GitHub Pages. إذا كنت تفتح الصفحة محلياً أو على نطاق مخصص، أدخل البيانات يدوياً:
+            </p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-200 mb-1.5">اسم المستخدم (GitHub Username)</label>
+                    <input id="input-owner" type="text" placeholder="username" dir="ltr" class="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-200 mb-1.5">اسم المستودع (Repository)</label>
+                    <input id="input-repo" type="text" placeholder="repo-name" dir="ltr" class="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex items-center gap-3 pt-2">
+                    <button id="save-settings-btn" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-sm transition">
+                        حفظ وجلب الألعاب
+                    </button>
+                    <button id="reset-settings-btn" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-sm transition">
+                        تلقائي
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة التحميل -->
+    <div id="game-loader-overlay" class="hidden fixed inset-0 z-[10000] bg-[#0a0e1a]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+        <div class="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin mb-4"></div>
+        <h3 id="loading-game-title" class="text-xl font-bold text-indigo-200 mb-1">جاري تجهيز اللعبة...</h3>
+        <p class="text-xs text-slate-400">يتم تحميل ملفات اللعبة مباشرة</p>
+    </div>
+
+    <button id="exit-game-btn" class="hidden fixed top-4 right-4 z-[10001] px-4 py-2.5 rounded-full bg-[#131a2b]/90 hover:bg-indigo-600 text-white border border-indigo-500/50 shadow-xl backdrop-blur-md text-xs sm:text-sm font-bold flex items-center gap-2 transition">
+        ↩️ <span>العودة للألعاب</span>
+    </button>
+
+    <div id="game-stage" aria-live="polite"></div>
+
+    <script>
+        /**
+         * بوابة ألعاب عامة — تكتشف المجلدات من GitHub API وتشغل الألعاب عبر fetch() بدون iframe
+         */
+
+        const IGNORED_FOLDERS = new Set(['.git', '.github', 'assets', 'images', 'img', 'css', 'js', 'fonts', 'shared', 'ads']);
+        const CARD_ICONS = ['🎮', '🕹️', '👾', '🎯', '🚀', '⚡', '🏆', '🎲', '🧩', '🌟'];
+
+        const state = {
+            owner: '',
+            repo: '',
+            games: [],
+            activeGameFolder: null,
+            originalTitle: document.title,
+            originalBodyOverflow: ''
+        };
+
+        const els = {
+            hubView: document.getElementById('hub-view'),
+            gameStage: document.getElementById('game-stage'),
+            exitGameBtn: document.getElementById('exit-game-btn'),
+            loaderOverlay: document.getElementById('game-loader-overlay'),
+            loadingGameTitle: document.getElementById('loading-game-title'),
+            gamesGrid: document.getElementById('games-grid'),
+            loadingGrid: document.getElementById('loading-grid'),
+            emptyState: document.getElementById('empty-state'),
+            gamesCount: document.getElementById('games-count'),
+            repoStatusBadge: document.getElementById('repo-status-badge'),
+            statusBanner: document.getElementById('status-banner'),
+            guidePanel: document.getElementById('guide-panel'),
+            settingsModal: document.getElementById('settings-modal'),
+            inputOwner: document.getElementById('input-owner'),
+            inputRepo: document.getElementById('input-repo')
+        };
+
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        function initFloatingParticles() {
+            const container = document.getElementById('particles-container');
+            const symbols = ['🎮', '✦', '⭐', '🎯', '💠'];
+            const count = window.innerWidth < 640 ? 10 : 18;
+            for (let i = 0; i < count; i++) {
+                const span = document.createElement('span');
+                span.className = 'floating-particle select-none';
+                span.textContent = symbols[i % symbols.length];
+                span.style.left = `${Math.random() * 100}vw`;
+                span.style.fontSize = `${12 + Math.random() * 14}px`;
+                span.style.animationDuration = `${14 + Math.random() * 18}s`;
+                span.style.animationDelay = `${-Math.random() * 20}s`;
+                container.appendChild(span);
+            }
+        }
+
+        function detectGitHubRepo() {
+            const savedOwner = localStorage.getItem('gg_gh_owner');
+            const savedRepo = localStorage.getItem('gg_gh_repo');
+            if (savedOwner && savedRepo) {
+                state.owner = savedOwner;
+                state.repo = savedRepo;
+                return true;
+            }
+
+            const hostname = window.location.hostname.toLowerCase();
+            const pathname = window.location.pathname;
+
+            if (hostname.endsWith('.github.io')) {
+                const owner = hostname.replace('.github.io', '');
+                const pathParts = pathname.split('/').filter(Boolean);
+                const repo = pathParts.length > 0 ? pathParts[0] : `${owner}.github.io`;
+                state.owner = owner;
+                state.repo = repo;
+                return true;
+            }
+            return false;
+        }
+
+        function showBanner(message, isError = false) {
+            els.statusBanner.textContent = message;
+            els.statusBanner.classList.remove('hidden', 'bg-indigo-500/15', 'border-indigo-500/40', 'text-indigo-200', 'bg-red-500/20', 'border-red-500/40', 'text-red-200');
+            if (isError) els.statusBanner.classList.add('bg-red-500/20', 'border-red-500/40', 'text-red-200');
+            else els.statusBanner.classList.add('bg-indigo-500/15', 'border-indigo-500/40', 'text-indigo-200');
+        }
+        function hideBanner() { els.statusBanner.classList.add('hidden'); }
+
+        async function fetchGamesFromGitHub() {
+            hideBanner();
+            els.loadingGrid.classList.remove('hidden');
+            els.gamesGrid.classList.add('hidden');
+            els.emptyState.classList.add('hidden');
+
+            const detected = detectGitHubRepo();
+
+            if (!detected) {
+                els.loadingGrid.classList.add('hidden');
+                els.repoStatusBadge.textContent = 'وضع المعاينة';
+                showBanner('أنت تفتح الصفحة خارج GitHub Pages. اضغط ⚙️ لإدخال بيانات المستودع، أو ارفع الملفات على GitHub ليعمل تلقائياً.');
+                renderDemoCards();
+                return;
+            }
+
+            els.repoStatusBadge.textContent = `${state.owner}/${state.repo}`;
+
+            try {
+                const apiUrl = `https://api.github.com/repos/${encodeURIComponent(state.owner)}/${encodeURIComponent(state.repo)}/contents/?t=${Date.now()}`;
+                const response = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                if (!response.ok) throw new Error(`تعذر الوصول للمستودع (رمز: ${response.status})`);
+                const items = await response.json();
+
+                const gameFolders = items.filter(item =>
+                    item.type === 'dir' &&
+                    !item.name.startsWith('.') &&
+                    !IGNORED_FOLDERS.has(item.name.toLowerCase())
+                );
+
+                state.games = gameFolders.map(folder => ({
+                    folderName: folder.name,
+                    displayName: decodeURIComponent(folder.name),
+                    path: folder.path
+                }));
+
+                renderGamesGrid(state.games);
+            } catch (error) {
+                console.error('GitHub API Error:', error);
+                els.loadingGrid.classList.add('hidden');
+                els.emptyState.classList.remove('hidden');
+                showBanner(`تنبيه: ${error.message}. تأكد أن المستودع عام وأن الاسم صحيح.`, true);
+            }
+        }
+
+        function renderDemoCards() {
+            const demoGames = [
+                { folderName: 'game-1', displayName: 'لعبة تجريبية 1', isDemo: true },
+                { folderName: 'game-2', displayName: 'لعبة تجريبية 2', isDemo: true },
+                { folderName: 'game-3', displayName: 'لعبة تجريبية 3', isDemo: true }
+            ];
+            els.gamesCount.textContent = '0';
+            els.gamesGrid.innerHTML = '';
+            demoGames.forEach((game, index) => {
+                els.gamesGrid.appendChild(createGameCardElement(game, index));
+            });
+            els.gamesGrid.classList.remove('hidden');
+        }
+
+        function renderGamesGrid(games) {
+            els.loadingGrid.classList.add('hidden');
+            els.gamesCount.textContent = games.length;
+
+            if (games.length === 0) {
+                els.gamesGrid.classList.add('hidden');
+                els.emptyState.classList.remove('hidden');
+                return;
+            }
+
+            els.emptyState.classList.add('hidden');
+            els.gamesGrid.innerHTML = '';
+            games.forEach((game, index) => {
+                els.gamesGrid.appendChild(createGameCardElement(game, index));
+            });
+            els.gamesGrid.classList.remove('hidden');
+        }
+
+        function createGameCardElement(game, index) {
+            const icon = CARD_ICONS[index % CARD_ICONS.length];
+            const card = document.createElement('article');
+            card.className = 'glass-card rounded-3xl p-6 sm:p-7 flex flex-col justify-between cursor-pointer group relative overflow-hidden';
+
+            card.innerHTML = `
+                <div class="absolute -left-8 -top-8 w-28 h-28 rounded-full bg-gradient-to-br from-indigo-500/20 to-cyan-600/10 blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-cyan-600/25 border border-indigo-400/30 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-300">
+                            ${icon}
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-[11px] font-semibold bg-white/5 text-slate-300 border border-white/10">
+                            ${game.isDemo ? 'مثال' : `لعبة #${index + 1}`}
+                        </span>
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-bold text-white group-hover:text-cyan-300 transition-colors mb-2 line-clamp-2">
+                        ${escapeHtml(game.displayName)}
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-300/70">
+                        ${game.isDemo ? 'ارفع مجلداً بهذا الاسم على GitHub' : 'اضغط للبدء واللعب مباشرة'}
+                    </p>
+                </div>
+                <div class="relative z-10 mt-6 pt-4 border-t border-white/10 flex items-center justify-between">
+                    <span class="text-xs font-bold text-indigo-400 group-hover:translate-x-[-4px] transition-transform flex items-center gap-1.5">
+                        <span>العب الآن</span>
+                        <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </span>
+                    <span class="w-9 h-9 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </span>
+                </div>
+            `;
+
+            card.addEventListener('click', () => {
+                if (game.isDemo) {
+                    showBanner('هذه بطاقة مثال. ارفع مجلد اللعبة على GitHub Pages أو أدخل بيانات المستودع من ⚙️.');
+                    return;
+                }
+                launchGameViaFetch(game);
+            });
+
+            return card;
+        }
+
+        async function launchGameViaFetch(game) {
+            const folderEncoded = encodeURIComponent(game.folderName);
+            const gameIndexUrl = `./${folderEncoded}/index.html`;
+
+            els.loadingGameTitle.textContent = `جاري فتح "${game.displayName}"...`;
+            els.loaderOverlay.classList.remove('hidden');
+
+            try {
+                const response = await fetch(gameIndexUrl);
+                if (!response.ok) throw new Error(`لم يتم العثور على index.html داخل "${game.displayName}"`);
+
+                const htmlText = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlText, 'text/html');
+
+                cleanupActiveGameAssets();
+
+                const baseTag = document.createElement('base');
+                baseTag.href = `./${folderEncoded}/`;
+                baseTag.setAttribute('data-game-asset', 'true');
+                document.head.prepend(baseTag);
+
+                document.title = `${game.displayName} | عالم الألعاب`;
+
+                const headNodes = doc.head.querySelectorAll('style, link[rel="stylesheet"]');
+                headNodes.forEach(node => {
+                    const cloned = node.cloneNode(true);
+                    cloned.setAttribute('data-game-asset', 'true');
+                    document.head.appendChild(cloned);
+                });
+
+                els.gameStage.innerHTML = '';
+                els.gameStage.className = `active ${doc.body.className || ''}`;
+                if (doc.body.getAttribute('style')) els.gameStage.setAttribute('style', doc.body.getAttribute('style'));
+
+                Array.from(doc.body.childNodes).forEach(node => {
+                    if (node.nodeName.toLowerCase() !== 'script') {
+                        els.gameStage.appendChild(node.cloneNode(true));
+                    }
+                });
+
+                state.originalBodyOverflow = document.body.style.overflow;
+                document.body.style.overflow = 'hidden';
+                els.hubView.classList.add('hidden');
+                els.exitGameBtn.classList.remove('hidden');
+                state.activeGameFolder = game.folderName;
+
+                const allScripts = Array.from(doc.querySelectorAll('script'));
+                await executeScriptsSequentially(allScripts);
+
+                window.dispatchEvent(new Event('resize'));
+                window.dispatchEvent(new Event('load'));
+
+            } catch (error) {
+                console.error('Game Fetch Error:', error);
+                exitGameToHub();
+                showBanner(`تعذر تشغيل اللعبة: ${error.message}`, true);
+            } finally {
+                els.loaderOverlay.classList.add('hidden');
+            }
+        }
+
+        async function executeScriptsSequentially(scripts) {
+            for (const oldScript of scripts) {
+                await new Promise((resolve) => {
+                    const newScript = document.createElement('script');
+                    newScript.setAttribute('data-game-asset', 'true');
+                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    if (oldScript.src) {
+                        newScript.onload = () => resolve();
+                        newScript.onerror = () => { console.warn('فشل سكربت:', oldScript.src); resolve(); };
+                        document.body.appendChild(newScript);
+                    } else {
+                        newScript.textContent = oldScript.textContent;
+                        document.body.appendChild(newScript);
+                        resolve();
+                    }
+                });
+            }
+        }
+
+        function cleanupActiveGameAssets() {
+            document.querySelectorAll('[data-game-asset="true"]').forEach(el => el.remove());
+        }
+
+        function exitGameToHub() {
+            const highestId = window.setTimeout(() => {}, 0);
+            for (let i = 0; i <= highestId; i++) {
+                window.clearTimeout(i);
+                window.clearInterval(i);
+            }
+            cleanupActiveGameAssets();
+            els.gameStage.innerHTML = '';
+            els.gameStage.className = '';
+            els.gameStage.removeAttribute('style');
+            els.exitGameBtn.classList.add('hidden');
+            els.hubView.classList.remove('hidden');
+            document.body.style.overflow = state.originalBodyOverflow || '';
+            document.title = state.originalTitle;
+            state.activeGameFolder = null;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        document.getElementById('exit-game-btn').addEventListener('click', exitGameToHub);
+        document.getElementById('refresh-games-btn').addEventListener('click', fetchGamesFromGitHub);
+
+        document.getElementById('toggle-guide-btn').addEventListener('click', () => els.guidePanel.classList.toggle('hidden'));
+        document.getElementById('close-guide-btn').addEventListener('click', () => els.guidePanel.classList.add('hidden'));
+
+        document.getElementById('open-settings-btn').addEventListener('click', () => {
+            els.inputOwner.value = state.owner || '';
+            els.inputRepo.value = state.repo || '';
+            els.settingsModal.classList.remove('hidden');
+        });
+        document.getElementById('close-settings-btn').addEventListener('click', () => els.settingsModal.classList.add('hidden'));
+
+        document.getElementById('save-settings-btn').addEventListener('click', () => {
+            const owner = els.inputOwner.value.trim();
+            const repo = els.inputRepo.value.trim();
+            if (owner && repo) {
+                localStorage.setItem('gg_gh_owner', owner);
+                localStorage.setItem('gg_gh_repo', repo);
+                els.settingsModal.classList.add('hidden');
+                fetchGamesFromGitHub();
+            }
+        });
+
+        document.getElementById('reset-settings-btn').addEventListener('click', () => {
+            localStorage.removeItem('gg_gh_owner');
+            localStorage.removeItem('gg_gh_repo');
+            els.settingsModal.classList.add('hidden');
+            fetchGamesFromGitHub();
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initFloatingParticles();
+            fetchGamesFromGitHub();
+        });
+    </script>
+</body>
+</html>
