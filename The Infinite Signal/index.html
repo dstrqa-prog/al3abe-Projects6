@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VoidGrid: The Infinite Signal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-void: #020205;
+            --neon-purple: #a855f7;
+            --neon-blue: #3b82f6;
+            --neon-cyan: #06b6d4;
+            --neon-gold: #f59e0b;
+            --neon-red: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-void);
+            font-family: 'Cairo', sans-serif;
+            color: #e2e8f0;
+            touch-action: none;
+        }
+
+        .font-tech {
+            font-family: 'Orbitron', 'Cairo', sans-serif;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* Glassmorphism Cyber Panels */
+        .cyber-panel {
+            background: rgba(8, 10, 20, 0.82);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(168, 85, 247, 0.35);
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.15), inset 0 0 15px rgba(168, 85, 247, 0.08);
+        }
+
+        .cyber-btn {
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cyber-btn:active {
+            transform: scale(0.94);
+        }
+
+        .cyber-btn.active-tool {
+            border-color: #06b6d4;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.35), rgba(168, 85, 247, 0.35));
+            box-shadow: 0 0 18px rgba(6, 182, 212, 0.5);
+        }
+
+        /* Glitch Storm Warning Animation */
+        @keyframes stormPulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); border-color: rgba(239, 68, 68, 0.8); }
+            50% { box-shadow: 0 0 35px rgba(239, 68, 68, 0.95); border-color: #fca5a5; }
+        }
+
+        .storm-alert {
+            animation: stormPulse 1s infinite;
+        }
+
+        /* Custom Scrollbar for Modals */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.5);
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full">
+
+    <!-- Main Interactive Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top HUD: Resources, Seed & Quick Controls -->
+    <header class="fixed top-0 left-0 right-0 z-20 p-2 sm:p-3 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        
+        <!-- Resources Display -->
+        <div class="cyber-panel rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 flex items-center gap-3 sm:gap-5 pointer-events-auto">
+            <!-- Energy -->
+            <div class="flex items-center gap-1.5">
+                <div class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]"></div>
+                <div>
+                    <div class="text-[10px] sm:text-xs text-slate-400 leading-none">الطاقة</div>
+                    <div class="font-tech font-bold text-sm sm:text-base text-cyan-300 leading-tight">
+                        <span id="ui-energy">100</span>
+                        <span id="ui-energy-rate" class="text-[10px] text-cyan-500 font-normal">(+2/ث)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-6 w-[1px] bg-purple-500/30"></div>
+
+            <!-- Data Shards -->
+            <div class="flex items-center gap-1.5">
+                <div class="w-3 h-3 rotate-45 bg-purple-500 shadow-[0_0_10px_#a855f7]"></div>
+                <div>
+                    <div class="text-[10px] sm:text-xs text-slate-400 leading-none">بيانات مشفرة</div>
+                    <div class="font-tech font-bold text-sm sm:text-base text-purple-300 leading-tight">
+                        <span id="ui-data">0</span>
+                        <span id="ui-data-rate" class="text-[10px] text-purple-400 font-normal">(+0/ث)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hidden md:block h-6 w-[1px] bg-purple-500/30"></div>
+
+            <!-- Sector / Distance -->
+            <div class="hidden md:flex items-center gap-1.5">
+                <div>
+                    <div class="text-[10px] text-slate-400 leading-none">نطاق الشبكة</div>
+                    <div id="ui-nodes-count" class="font-tech font-bold text-sm text-blue-300 leading-tight">1 عقدة</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seed & Utility Actions -->
+        <div class="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+            <!-- Seed Badge -->
+            <button onclick="openSeedModal()" class="cyber-panel cyber-btn rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center gap-1.5 text-xs sm:text-sm hover:border-purple-400" title="تغيير أو مشاركة كود العالم">
+                <span class="text-purple-400">◈</span>
+                <span class="hidden sm:inline text-slate-400">SEED:</span>
+                <span id="ui-seed" class="font-tech font-bold text-purple-200 tracking-wider">VOID-7749</span>
+            </button>
+
+            <!-- Snapshot Export -->
+            <button onclick="exportNetworkSnapshot()" class="cyber-panel cyber-btn rounded-xl p-2 sm:px-3 sm:py-2 flex items-center gap-1.5 text-xs sm:text-sm text-cyan-300 hover:border-cyan-400" title="تصدير صورة عالية الدقة للشبكة">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                <span class="hidden md:inline font-semibold">تصوير الشبكة</span>
+            </button>
+
+            <!-- Audio Toggle -->
+            <button id="btn-audio" onclick="toggleAudio()" class="cyber-panel cyber-btn rounded-xl p-2 text-slate-300 hover:text-white" title="تشغيل/كتم الصوت الإلكتروني">
+                <svg id="icon-sound-off" class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+                <svg id="icon-sound-on" class="w-5 h-5 text-cyan-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+            </button>
+
+            <!-- Help / Tutorial -->
+            <button onclick="openTutorial()" class="cyber-panel cyber-btn rounded-xl p-2 text-purple-300 hover:text-white" title="دليل اللعب">
+                <span class="font-tech font-bold text-sm px-1">?</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Glitch Storm Warning Banner -->
+    <div id="storm-banner" class="hidden fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-20 cyber-panel storm-alert bg-red-950/85 rounded-2xl px-4 py-2 flex items-center gap-3 pointer-events-none">
+        <span class="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
+        <div class="text-xs sm:text-sm font-bold text-red-200">
+            تحذير: عاصفة برمجية نشطة! <span id="storm-timer" class="font-tech text-red-400">20s</span>
+        </div>
+    </div>
+
+    <!-- Toast Notification Box (Replaces alert) -->
+    <div id="toast-box" class="fixed top-28 left-1/2 -translate-x-1/2 z-40 pointer-events-none transition-all duration-300 opacity-0 translate-y-[-10px]">
+        <div id="toast-content" class="cyber-panel rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold text-cyan-200 shadow-lg border-cyan-400/50">
+            تم النسخ!
+        </div>
+    </div>
+
+    <!-- Side Zoom & Center Controls (Mobile & Desktop friendly) -->
+    <div class="fixed left-3 bottom-24 sm:bottom-28 z-20 flex flex-col gap-2">
+        <button onclick="centerCamera()" class="cyber-panel cyber-btn w-10 h-10 rounded-xl flex items-center justify-center text-cyan-300 hover:border-cyan-400" title="العودة للنواة المركزية">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+        </button>
+        <button onclick="adjustZoom(0.2)" class="cyber-panel cyber-btn w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold text-slate-200 hover:border-purple-400" title="تكبير">+</button>
+        <button onclick="adjustZoom(-0.2)" class="cyber-panel cyber-btn w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold text-slate-200 hover:border-purple-400" title="تصغير">−</button>
+    </div>
+
+    <!-- Bottom Action Toolbar (Build Nodes, Upgrades, Repair) -->
+    <footer class="fixed bottom-0 left-0 right-0 z-20 p-2 sm:p-3 flex justify-center pointer-events-none">
+        <div class="cyber-panel rounded-2xl p-1.5 sm:p-2 flex items-center gap-1.5 sm:gap-2.5 max-w-full overflow-x-auto pointer-events-auto">
+            
+            <!-- Tool 1: Relay Node -->
+            <button id="tool-relay" onclick="selectTool('relay')" class="cyber-btn active-tool rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2 border border-purple-500/30 flex flex-col items-center min-w-[72px] sm:min-w-[88px]">
+                <div class="flex items-center gap-1 text-blue-400 font-bold text-xs sm:text-sm">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_8px_#60a5fa]"></span>
+                    <span>عقدة ربط</span>
+                </div>
+                <span id="cost-relay" class="font-tech text-[10px] sm:text-xs text-cyan-300 mt-0.5">15 ⚡</span>
+            </button>
+
+            <!-- Tool 2: Auto-Harvester -->
+            <button id="tool-harvester" onclick="selectTool('harvester')" class="cyber-btn rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2 border border-purple-500/30 flex flex-col items-center min-w-[76px] sm:min-w-[92px]">
+                <div class="flex items-center gap-1 text-purple-400 font-bold text-xs sm:text-sm">
+                    <span class="w-2.5 h-2.5 rotate-45 bg-purple-400 shadow-[0_0_8px_#c084fc]"></span>
+                    <span>حاصد آلي</span>
+                </div>
+                <span id="cost-harvester" class="font-tech text-[10px] sm:text-xs text-cyan-300 mt-0.5">40 ⚡</span>
+            </button>
+
+            <!-- Tool 3: Firewall Defense -->
+            <button id="tool-firewall" onclick="selectTool('firewall')" class="cyber-btn rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2 border border-purple-500/30 flex flex-col items-center min-w-[76px] sm:min-w-[92px]">
+                <div class="flex items-center gap-1 text-amber-400 font-bold text-xs sm:text-sm">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-amber-400 shadow-[0_0_8px_#fbbf24]"></span>
+                    <span>جدار حماية</span>
+                </div>
+                <span id="cost-firewall" class="font-tech text-[10px] sm:text-xs text-cyan-300 mt-0.5">60 ⚡ 5◈</span>
+            </button>
+
+            <!-- Tool 4: Purge / Repair -->
+            <button id="tool-repair" onclick="selectTool('repair')" class="cyber-btn rounded-xl px-2.5 py-2 sm:px-3.5 sm:py-2 border border-purple-500/30 flex flex-col items-center min-w-[70px] sm:min-w-[84px]">
+                <div class="flex items-center gap-1 text-emerald-400 font-bold text-xs sm:text-sm">
+                    <span>⚡</span>
+                    <span>إصلاح</span>
+                </div>
+                <span class="font-tech text-[10px] sm:text-xs text-emerald-300 mt-0.5">10 ⚡</span>
+            </button>
+
+            <div class="h-8 w-[1px] bg-purple-500/30 mx-0.5"></div>
+
+            <!-- Upgrades Modal Trigger -->
+            <button onclick="openUpgradesModal()" class="cyber-btn rounded-xl px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-purple-600/40 to-blue-600/40 border border-purple-400/50 flex flex-col items-center min-w-[76px] sm:min-w-[92px] hover:border-purple-300">
+                <div class="flex items-center gap-1 text-white font-bold text-xs sm:text-sm">
+                    <span>▲</span>
+                    <span>التطويرات</span>
+                </div>
+                <span class="text-[10px] sm:text-xs text-purple-200 mt-0.5">تقنية الشبكة</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Modal: Upgrades Panel -->
+    <div id="modal-upgrades" class="hidden fixed inset-0 z-30 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="cyber-panel rounded-3xl w-full max-w-md p-5 sm:p-6 relative">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-l from-cyan-400 to-purple-400">
+                    مختبر تطوير الشبكة
+                </h2>
+                <button onclick="closeModals()" class="w-8 h-8 rounded-full bg-slate-800/80 text-slate-300 hover:text-white flex items-center justify-center">✕</button>
+            </div>
+
+            <div id="upgrades-list" class="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Seed & World Sharing -->
+    <div id="modal-seed" class="hidden fixed inset-0 z-30 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="cyber-panel rounded-3xl w-full max-w-md p-5 sm:p-6 relative">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg sm:text-xl font-bold text-purple-300">إدارة العوالم والـ SEED</h2>
+                <button onclick="closeModals()" class="w-8 h-8 rounded-full bg-slate-800/80 text-slate-300 hover:text-white flex items-center justify-center">✕</button>
+            </div>
+
+            <p class="text-xs sm:text-sm text-slate-300 mb-4 leading-relaxed">
+                كل رقم <span class="text-purple-400 font-bold">Seed</span> يولّد خريطة لانهائية فريدة من آبار الطاقة والبيانات المشفرة. شارك كود عالمك مع أصدقائك لتتحدوا في بناء أجمل شبكة!
+            </p>
+
+            <!-- Current Seed Copy -->
+            <div class="bg-slate-950/90 border border-purple-500/30 rounded-2xl p-3 mb-4 flex items-center justify-between">
+                <div>
+                    <div class="text-[11px] text-slate-400">كود العالم الحالي</div>
+                    <div id="modal-current-seed" class="font-tech font-bold text-base text-cyan-300">VOID-7749</div>
+                </div>
+                <button onclick="copyCurrentSeed()" class="cyber-btn bg-purple-600/40 hover:bg-purple-600/60 border border-purple-400/50 rounded-xl px-3 py-1.5 text-xs font-bold text-white">
+                    نسخ الكود
+                </button>
+            </div>
+
+            <!-- Generate New World with Custom or Random Seed -->
+            <div class="space-y-3">
+                <label class="block text-xs text-slate-400">أدخل كود جديد لتوليد عالم مختلف (سيتم إعادة ضبط الشبكة):</label>
+                <div class="flex gap-2">
+                    <input id="input-new-seed" type="text" placeholder="مثال: CYBER-2077" class="flex-1 bg-slate-950 border border-slate-700 focus:border-cyan-400 rounded-xl px-3 py-2 text-sm font-tech text-white outline-none uppercase" dir="ltr">
+                    <button onclick="randomSeedInput()" class="cyber-btn bg-slate-800 border border-slate-600 rounded-xl px-3 py-2 text-xs text-slate-200" title="كود عشوائي">🎲</button>
+                </div>
+                <button onclick="applyNewSeed()" class="w-full cyber-btn bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl py-2.5 font-bold text-sm text-white shadow-lg">
+                    توليد العالم الجديد
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Tutorial / Welcome -->
+    <div id="modal-tutorial" class="hidden fixed inset-0 z-30 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="cyber-panel rounded-3xl w-full max-w-lg p-6 relative border-cyan-500/40">
+            <div class="text-center mb-4">
+                <div class="inline-block px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 font-tech text-xs mb-2">
+                    VOIDGRID // INFINITE SIGNAL
+                </div>
+                <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500">
+                    مرحباً بك في الفراغ الرقمي
+                </h1>
+            </div>
+
+            <div class="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed mb-6">
+                <div class="flex items-start gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
+                    <span class="text-cyan-400 text-lg font-bold">01</span>
+                    <div>
+                        <strong class="text-white">مد الأسلاك وتوسع:</strong> اضغط في أي مكان داخل الدائرة المضيئة حول نواتك لبناء <span class="text-blue-400">عقدة ربط</span> وتمديد أسلاك الطاقة إلى المجهول.
+                    </div>
+                </div>
+                <div class="flex items-start gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
+                    <span class="text-purple-400 text-lg font-bold">02</span>
+                    <div>
+                        <strong class="text-white">استخرج الموارد النادرة:</strong> ابحث عن <span class="text-cyan-300">آبار الطاقة (أزرق)</span> و<span class="text-purple-300">بلورات البيانات (بنفسجي)</span> و<span class="text-amber-300">الأنوية الفائقة (ذهبي)</span>، وضع بجانبها <span class="text-purple-400">حاصداً آلياً</span> لتتدفق الموارد تلقائياً.
+                    </div>
+                </div>
+                <div class="flex items-start gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
+                    <span class="text-red-400 text-lg font-bold">03</span>
+                    <div>
+                        <strong class="text-white">واجه العواصف البرمجية:</strong> عند هجوم الفيروسات الحمراء، ابنِ <span class="text-amber-400">جدران حماية</span> لتدميرها بالليزر، أو استخدم أداة <span class="text-emerald-400">الإصلاح</span> لإنقاذ عقدك.
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="closeTutorial()" class="w-full cyber-btn bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl py-3 font-bold text-base text-white shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                ابدأ البث الآن
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ============================================================================
+         * VOIDGRID: THE INFINITE SIGNAL - Core Engine
+         * Single-file HTML5 Canvas Game with Procedural Generation, Web Audio Synth,
+         * Mobile Touch Gestures, LocalStorage Persistence, and High-Res Snapshot.
+         * ============================================================================
+         */
+
+        // --- 1. SEEDED PRNG & DETERMINISTIC WORLD GENERATION ---
+        function hashString(str) {
+            let h = 2166136261 >>> 0;
+            for (let i = 0; i < str.length; i++) {
+                h ^= str.charCodeAt(i);
+                h = Math.imul(h, 16777619);
+            }
+            return h >>> 0;
+        }
+
+        // Deterministic 2D hash for infinite procedural chunks
+        function seededNoise2D(x, y, seedInt) {
+            let n = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seedInt, 1442695041);
+            n = (n ^ (n >>> 13)) >>> 0;
+            n = Math.imul(n, 1274126177) >>> 0;
+            return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+        }
+
+        // --- 2. WEB AUDIO API PROCEDURAL AMBIENT SYNTH ---
+        class CyberSynth {
+            constructor() {
+                this.ctx = null;
+                this.enabled = false;
+                this.droneOsc1 = null;
+                this.droneOsc2 = null;
+                this.masterGain = null;
+            }
+
+            init() {
+                if (this.ctx) return;
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioCtx();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.25;
+                this.masterGain.connect(this.ctx.destination);
+
+                // Subtle Deep Cyber Drone
+                const droneGain = this.ctx.createGain();
+                droneGain.gain.value = 0.08;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 140;
+
+                this.droneOsc1 = this.ctx.createOscillator();
+                this.droneOsc1.type = 'sawtooth';
+                this.droneOsc1.frequency.value = 55; // A1
+
+                this.droneOsc2 = this.ctx.createOscillator();
+                this.droneOsc2.type = 'sine';
+                this.droneOsc2.frequency.value = 82.41; // E2
+
+                this.droneOsc1.connect(filter);
+                this.droneOsc2.connect(filter);
+                filter.connect(droneGain);
+                droneGain.connect(this.masterGain);
+
+                this.droneOsc1.start();
+                this.droneOsc2.start();
+            }
+
+            toggle() {
+                if (!this.ctx) this.init();
+                this.enabled = !this.enabled;
+                if (this.enabled) {
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                    this.masterGain.gain.setTargetAtTime(0.25, this.ctx.currentTime, 0.2);
+                } else {
+                    this.masterGain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.1);
+                }
+                return this.enabled;
+            }
+
+            playBuild(type) {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                if (type === 'relay') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.exponentialRampToValueAtTime(640, now + 0.16);
+                } else if (type === 'harvester') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(240, now);
+                    osc.frequency.exponentialRampToValueAtTime(720, now + 0.25);
+                } else if (type === 'firewall') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(420, now + 0.22);
+                } else {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                }
+
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.27);
+            }
+
+            playLaser() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(900, now);
+                osc.frequency.exponentialRampToValueAtTime(140, now + 0.12);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.14);
+            }
+
+            playStormAlert() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(110, now);
+                osc.frequency.linearRampToValueAtTime(85, now + 0.5);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                osc.start(now);
+                osc.stop(now + 0.56);
+            }
+        }
+
+        const synth = new CyberSynth();
+
+        // --- 3. GAME STATE & CONFIGURATION ---
+        const STORAGE_KEY = 'voidgrid_save_v1';
+
+        const DEFAULT_STATE = {
+            seed: 'VOID-' + Math.floor(1000 + Math.random() * 9000),
+            energy: 120,
+            data: 0,
+            nodes: [
+                { id: 'core', x: 0, y: 0, type: 'core', hp: 100, maxHp: 100, corrupted: false, pulseTimer: 0 }
+            ],
+            wires: [],
+            upgrades: {
+                wireRange: 1,      // Increases max connection distance
+                coreOutput: 1,     // Increases passive core energy
+                harvesterSpeed: 1, // Increases resource extraction rate
+                firewallPower: 1   // Increases firewall laser range & damage
+            },
+            tutorialSeen: false
+        };
+
+        let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+        let seedInt = hashString(gameState.seed);
+
+        // Runtime transient entities (not saved to keep save file tiny)
+        let pulses = [];         // Energy packets traveling along wires
+        let floatingTexts = [];  // +5, +12 popups
+        let particles = [];      // Neon sparks
+        let glitches = [];       // Enemy glitch viruses
+        let lasers = [];         // Firewall defense beams
+        let stormActive = false;
+        let stormTimer = 0;
+        let nextStormCountdown = 45; // First storm after 45 seconds
+
+        // Camera & Input State
+        const camera = {
+            x: 0,
+            y: 0,
+            zoom: 1,
+            targetZoom: 1
+        };
+
+        let selectedTool = 'relay';
+        let pointer = {
+            x: 0,
+            y: 0,
+            worldX: 0,
+            worldY: 0,
+            isDown: false,
+            dragStartX: 0,
+            dragStartY: 0,
+            camStartX: 0,
+            camStartY: 0,
+            hasDragged: false,
+            pinchDist: 0
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- 4. GAME BALANCE & FORMULAS ---
+        function getMaxWireRange() {
+            return 175 + (gameState.upgrades.wireRange - 1) * 40;
+        }
+
+        function getHarvesterRange() {
+            return 125 + (gameState.upgrades.harvesterSpeed - 1) * 15;
+        }
+
+        function getFirewallRange() {
+            return 190 + (gameState.upgrades.firewallPower - 1) * 35;
+        }
+
+        function getNodeCost(type) {
+            const count = gameState.nodes.filter(n => n.type === type).length;
+            if (type === 'relay') {
+                return { energy: Math.floor(15 * Math.pow(1.06, count)), data: 0 };
+            }
+            if (type === 'harvester') {
+                return { energy: Math.floor(40 * Math.pow(1.12, count)), data: Math.floor(count * 1.5) };
+            }
+            if (type === 'firewall') {
+                return { energy: Math.floor(60 * Math.pow(1.15, count)), data: 5 + count * 3 };
+            }
+            if (type === 'repair') {
+                return { energy: 10, data: 0 };
+            }
+            return { energy: 0, data: 0 };
+        }
+
+        const UPGRADE_DEFS = [
+            {
+                id: 'wireRange',
+                name: 'مُضخّم الإشارة (مدى الأسلاك)',
+                desc: 'يزيد أقصى مسافة لتمديد الأسلاك بين العقد.',
+                baseEnergy: 60,
+                baseData: 2,
+                scale: 1.65
+            },
+            {
+                id: 'coreOutput',
+                name: 'مفاعل النواة المركزية',
+                desc: 'يضاعف إنتاج الطاقة الأساسي للنواة كل ثانية.',
+                baseEnergy: 50,
+                baseData: 0,
+                scale: 1.6
+            },
+            {
+                id: 'harvesterSpeed',
+                name: 'خوارزمية الحصاد الفائق',
+                desc: 'يسرّع استخراج الطاقة والبيانات من الآبار والبلورات.',
+                baseEnergy: 80,
+                baseData: 5,
+                scale: 1.7
+            },
+            {
+                id: 'firewallPower',
+                name: 'مدافع الليزر الدفاعية',
+                desc: 'يزيد مدى وقوة تدمير جدران الحماية ضد الفيروسات.',
+                baseEnergy: 90,
+                baseData: 8,
+                scale: 1.75
+            }
+        ];
+
+        function getUpgradeCost(upgId) {
+            const def = UPGRADE_DEFS.find(u => u.id === upgId);
+            const lvl = gameState.upgrades[upgId] || 1;
+            return {
+                energy: Math.floor(def.baseEnergy * Math.pow(def.scale, lvl - 1)),
+                data: Math.floor(def.baseData * Math.pow(def.scale, lvl - 1))
+            };
+        }
+
+        // --- 5. PROCEDURAL RESOURCE GENERATION (INFINITE SECTORS) ---
+        const SECTOR_SIZE = 320;
+        const sectorCache = new Map();
+
+        function getResourcesInSector(sx, sy) {
+            const key = `${sx},${sy}`;
+            if (sectorCache.has(key)) return sectorCache.get(key);
+
+            const resources = [];
+            // Keep immediate spawn (0,0) clean
+            const distFromOrigin = Math.hypot(sx, sy);
+
+            // Up to 2 potential resource nodes per sector
+            for (let i = 0; i < 2; i++) {
+                const n1 = seededNoise2D(sx * 13 + i, sy * 29 - i, seedInt);
+                const threshold = distFromOrigin === 0 ? 0.55 : 0.48;
+                if (n1 > threshold) {
+                    const nx = seededNoise2D(sx * 31 + i, sy * 17, seedInt + 11);
+                    const ny = seededNoise2D(sx * 19, sy * 43 + i, seedInt + 23);
+                    const wx = sx * SECTOR_SIZE + (nx - 0.5) * (SECTOR_SIZE * 0.8);
+                    const wy = sy * SECTOR_SIZE + (ny - 0.5) * (SECTOR_SIZE * 0.8);
+
+                    // Avoid spawning right on top of (0,0)
+                    if (Math.hypot(wx, wy) < 95) continue;
+
+                    const typeRoll = seededNoise2D(sx + i * 7, sy - i * 5, seedInt + 99);
+                    let resType = 'energy_well';
+                    let richness = 1 + Math.floor(distFromOrigin * 0.35);
+
+                    // Rarer resources appear more frequently further from the center
+                    if (distFromOrigin >= 1.5 && typeRoll > 0.86) {
+                        resType = 'overclock_core'; // Rare Gold: Gives both Energy & High Data
+                    } else if (distFromOrigin >= 0.8 && typeRoll > 0.55) {
+                        resType = 'data_crystal'; // Purple: Gives Encrypted Data Shards
+                    }
+
+                    resources.push({
+                        id: `res_${sx}_${sy}_${i}`,
+                        x: wx,
+                        y: wy,
+                        type: resType,
+                        richness: richness
+                    });
+                }
+            }
+
+            sectorCache.set(key, resources);
+            return resources;
+        }
+
+        function getVisibleResources(viewLeft, viewRight, viewTop, viewBottom) {
+            const minSx = Math.floor(viewLeft / SECTOR_SIZE) - 1;
+            const maxSx = Math.floor(viewRight / SECTOR_SIZE) + 1;
+            const minSy = Math.floor(viewTop / SECTOR_SIZE) - 1;
+            const maxSy = Math.floor(viewBottom / SECTOR_SIZE) + 1;
+
+            const result = [];
+            for (let sx = minSx; sx <= maxSx; sx++) {
+                for (let sy = minSy; sy <= maxSy; sy++) {
+                    const list = getResourcesInSector(sx, sy);
+                    for (let r of list) result.push(r);
+                }
+            }
+            return result;
+        }
+
+        // --- 6. CANVAS RESIZING & COORDINATE TRANSFORMS ---
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function screenToWorld(sx, sy) {
+            return {
+                x: (sx - window.innerWidth / 2) / camera.zoom + camera.x,
+                y: (sy - window.innerHeight / 2) / camera.zoom + camera.y
+            };
+        }
+
+        function worldToScreen(wx, wy) {
+            return {
+                x: (wx - camera.x) * camera.zoom + window.innerWidth / 2,
+                y: (wy - camera.y) * camera.zoom + window.innerHeight / 2
+            };
+        }
+
+        // --- 7. BUILDING, CONNECTING & INTERACTION LOGIC ---
+        function findNearestPoweredNode(wx, wy, maxDist) {
+            let best = null;
+            let bestDist = maxDist;
+            for (const node of gameState.nodes) {
+                if (node.corrupted) continue;
+                const d = Math.hypot(node.x - wx, node.y - wy);
+                if (d <= bestDist) {
+                    bestDist = d;
+                    best = node;
+                }
+            }
+            return best;
+        }
+
+        function findNodeAt(wx, wy, radius = 26) {
+            for (const node of gameState.nodes) {
+                if (Math.hypot(node.x - wx, node.y - wy) <= radius) {
+                    return node;
+                }
+            }
+            return null;
+        }
+
+        function handleCanvasTap(wx, wy) {
+            const clickedNode = findNodeAt(wx, wy, 28);
+
+            // Repair Tool Logic
+            if (selectedTool === 'repair') {
+                if (clickedNode && (clickedNode.corrupted || clickedNode.hp < clickedNode.maxHp)) {
+                    const cost = getNodeCost('repair');
+                    if (gameState.energy >= cost.energy) {
+                        gameState.energy -= cost.energy;
+                        clickedNode.corrupted = false;
+                        clickedNode.hp = clickedNode.maxHp;
+                        spawnParticles(clickedNode.x, clickedNode.y, '#10b981', 16);
+                        addFloatingText(clickedNode.x, clickedNode.y - 18, 'تم الإصلاح!', '#34d399');
+                        synth.playBuild('repair');
+                        saveGame();
+                        updateUI();
+                    } else {
+                        showToast('طاقة غير كافية للإصلاح!');
+                    }
+                } else {
+                    showToast('اضغط على عقدة متضررة (حمراء) لإصلاحها');
+                }
+                return;
+            }
+
+            // If user taps a corrupted node directly with any tool and has 10 energy, quick-repair it!
+            if (clickedNode && clickedNode.corrupted) {
+                const cost = getNodeCost('repair');
+                if (gameState.energy >= cost.energy) {
+                    gameState.energy -= cost.energy;
+                    clickedNode.corrupted = false;
+                    clickedNode.hp = clickedNode.maxHp;
+                    spawnParticles(clickedNode.x, clickedNode.y, '#10b981', 16);
+                    addFloatingText(clickedNode.x, clickedNode.y - 18, 'تطهير الفيروس!', '#34d399');
+                    synth.playBuild('repair');
+                    saveGame();
+                    updateUI();
+                } else {
+                    showToast('تحتاج 10 طاقة لتطهير هذه العقدة!');
+                }
+                return;
+            }
+
+            // If user taps an existing healthy node, check if they want to connect another nearby node to it
+            if (clickedNode) {
+                showToast('اضغط في الفراغ ضمن الدائرة المضيئة لتمديد الشبكة');
+                return;
+            }
+
+            // Build New Node
+            const maxRange = getMaxWireRange();
+            const anchorNode = findNearestPoweredNode(wx, wy, maxRange);
+
+            if (!anchorNode) {
+                showToast('خارج نطاق الشبكة! اقترب من عقدة مضيئة');
+                return;
+            }
+
+            // Prevent overlapping nodes too closely
+            if (findNodeAt(wx, wy, 36)) {
+                showToast('المساحة قريبة جداً من عقدة أخرى');
+                return;
+            }
+
+            const cost = getNodeCost(selectedTool);
+            if (gameState.energy < cost.energy || gameState.data < cost.data) {
+                showToast('موارد غير كافية لبناء هذه الوحدة!');
+                return;
+            }
+
+            // Deduct resources & create node
+            gameState.energy -= cost.energy;
+            gameState.data -= cost.data;
+
+            const newNode = {
+                id: 'n_' + Date.now() + '_' + Math.floor(Math.random() * 999),
+                x: Math.round(wx),
+                y: Math.round(wy),
+                type: selectedTool,
+                hp: selectedTool === 'firewall' ? 180 : 100,
+                maxHp: selectedTool === 'firewall' ? 180 : 100,
+                corrupted: false,
+                pulseTimer: 0
+            };
+
+            gameState.nodes.push(newNode);
+
+            // Connect primary wire to nearest anchor
+            gameState.wires.push({ from: anchorNode.id, to: newNode.id });
+
+            // Also auto-connect up to 1 secondary nearby node to form cool geometric triangles/webs
+            for (const other of gameState.nodes) {
+                if (other.id !== newNode.id && other.id !== anchorNode.id && !other.corrupted) {
+                    const dist = Math.hypot(other.x - newNode.x, other.y - newNode.y);
+                    if (dist <= maxRange * 0.82) {
+                        gameState.wires.push({ from: other.id, to: newNode.id });
+                        break;
+                    }
+                }
+            }
+
+            const colorMap = { relay: '#3b82f6', harvester: '#a855f7', firewall: '#f59e0b' };
+            spawnParticles(newNode.x, newNode.y, colorMap[selectedTool] || '#38bdf8', 18);
+            synth.playBuild(selectedTool);
+            saveGame();
+            updateUI();
+        }
+
+        // --- 8. SIMULATION TICK (RESOURCES, PULSES, GLITCH STORMS) ---
+        let lastTime = performance.now();
+        let resourceTickAccum = 0;
+        let autoSaveAccum = 0;
+
+        function updateSimulation(dt) {
+            // Smooth camera zoom interpolation
+            camera.zoom += (camera.targetZoom - camera.zoom) * Math.min(1, dt * 10);
+
+            // Resource Generation Tick (Every 1.0 second)
+            resourceTickAccum += dt;
+            if (resourceTickAccum >= 1.0) {
+                resourceTickAccum -= 1.0;
+                processResourceTick();
+            }
+
+            // Auto-save every 15 seconds
+            autoSaveAccum += dt;
+            if (autoSaveAccum >= 15) {
+                autoSaveAccum = 0;
+                saveGame();
+            }
+
+            // Update Energy Pulses along wires
+            for (let i = pulses.length - 1; i >= 0; i--) {
+                const p = pulses[i];
+                p.progress += dt * p.speed;
+                if (p.progress >= 1) {
+                    pulses.splice(i, 1);
+                }
+            }
+
+            // Update Floating Popups
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y -= dt * 26;
+                ft.life -= dt;
+                if (ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const pt = particles[i];
+                pt.x += pt.vx * dt;
+                pt.y += pt.vy * dt;
+                pt.life -= dt;
+                if (pt.life <= 0) particles.splice(i, 1);
+            }
+
+            // Update Lasers
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                lasers[i].life -= dt;
+                if (lasers[i].life <= 0) lasers.splice(i, 1);
+            }
+
+            // Glitch Storm Lifecycle
+            updateGlitchStorms(dt);
+        }
+
+        let currentEnergyPerSec = 2;
+        let currentDataPerSec = 0;
+
+        function processResourceTick() {
+            let eGain = 2 * gameState.upgrades.coreOutput;
+            let dGain = 0;
+
+            const coreNode = gameState.nodes[0];
+            const harvRange = getHarvesterRange();
+            const speedMult = 1 + (gameState.upgrades.harvesterSpeed - 1) * 0.45;
+
+            // Check all Harvesters
+            for (const node of gameState.nodes) {
+                if (node.type === 'harvester' && !node.corrupted) {
+                    // Find nearby procedural resources
+                    const nearbyRes = getVisibleResources(
+                        node.x - harvRange, node.x + harvRange,
+                        node.y - harvRange, node.y + harvRange
+                    );
+
+                    let harvestedSomething = false;
+                    for (const res of nearbyRes) {
+                        if (Math.hypot(res.x - node.x, res.y - node.y) <= harvRange) {
+                            harvestedSomething = true;
+                            if (res.type === 'energy_well') {
+                                const amt = Math.round(4 * res.richness * speedMult);
+                                eGain += amt;
+                                addFloatingText(node.x, node.y - 16, `+${amt}⚡`, '#38bdf8');
+                            } else if (res.type === 'data_crystal') {
+                                const amt = Math.max(1, Math.round(1.5 * res.richness * speedMult));
+                                dGain += amt;
+                                addFloatingText(node.x, node.y - 16, `+${amt}◈`, '#c084fc');
+                            } else if (res.type === 'overclock_core') {
+                                const eAmt = Math.round(6 * res.richness * speedMult);
+                                const dAmt = Math.max(2, Math.round(2 * res.richness * speedMult));
+                                eGain += eAmt;
+                                dGain += dAmt;
+                                addFloatingText(node.x, node.y - 16, `+${eAmt}⚡ +${dAmt}◈`, '#fbbf24');
+                            }
+                        }
+                    }
+
+                    // Send visual energy pulse from Harvester toward Core
+                    if (harvestedSomething && coreNode) {
+                        spawnWirePulse(node, coreNode, '#c084fc');
+                    }
+                }
+            }
+
+            // Ambient pulses from Core outward to random relays
+            if (gameState.wires.length > 0) {
+                const randWire = gameState.wires[Math.floor(Math.random() * gameState.wires.length)];
+                const nA = gameState.nodes.find(n => n.id === randWire.from);
+                const nB = gameState.nodes.find(n => n.id === randWire.to);
+                if (nA && nB && !nA.corrupted && !nB.corrupted) {
+                    spawnWirePulse(nA, nB, '#38bdf8');
+                }
+            }
+
+            gameState.energy += eGain;
+            gameState.data += dGain;
+            currentEnergyPerSec = eGain;
+            currentDataPerSec = dGain;
+            updateUI();
+        }
+
+        function spawnWirePulse(fromNode, toNode, color) {
+            if (pulses.length > 80) return;
+            pulses.push({
+                x1: fromNode.x,
+                y1: fromNode.y,
+                x2: toNode.x,
+                y2: toNode.y,
+                progress: 0,
+                speed: 1.4 + Math.random() * 0.6,
+                color: color
+            });
+        }
+
+        // --- 9. GLITCH STORMS & FIREWALL DEFENSE ---
+        function updateGlitchStorms(dt) {
+            // Only trigger storms once the player has built at least 4 nodes
+            if (gameState.nodes.length < 4) return;
+
+            if (!stormActive) {
+                nextStormCountdown -= dt;
+                if (nextStormCountdown <= 0) {
+                    startGlitchStorm();
+                }
+            } else {
+                stormTimer -= dt;
+                document.getElementById('storm-timer').textContent = Math.ceil(stormTimer) + 's';
+
+                // Spawn glitches periodically during storm
+                if (Math.random() < dt * 1.1 && glitches.length < 10) {
+                    spawnGlitchVirus();
+                }
+
+                if (stormTimer <= 0) {
+                    stormActive = false;
+                    nextStormCountdown = 55 + Math.random() * 25;
+                    document.getElementById('storm-banner').classList.add('hidden');
+                    showToast('انتهت العاصفة البرمجية! الشبكة آمنة مؤقتاً.');
+                }
+            }
+
+            // Firewall Nodes auto-target nearby glitches
+            const fwRange = getFirewallRange();
+            const fwDamage = 35 * gameState.upgrades.firewallPower;
+
+            for (const node of gameState.nodes) {
+                if (node.type === 'firewall' && !node.corrupted) {
+                    node.pulseTimer = (node.pulseTimer || 0) - dt;
+                    if (node.pulseTimer <= 0 && glitches.length > 0) {
+                        // Find closest glitch
+                        let target = null;
+                        let minD = fwRange;
+                        for (const g of glitches) {
+                            const d = Math.hypot(g.x - node.x, g.y - node.y);
+                            if (d <= minD) {
+                                minD = d;
+                                target = g;
+                            }
+                        }
+                        if (target) {
+                            node.pulseTimer = 0.65;
+                            target.hp -= fwDamage;
+                            lasers.push({ x1: node.x, y1: node.y, x2: target.x, y2: target.y, life: 0.18 });
+                            synth.playLaser();
+                            spawnParticles(target.x, target.y, '#f59e0b', 6);
+                        }
+                    }
+                }
+            }
+
+            // Move Glitches toward outer player nodes
+            for (let i = glitches.length - 1; i >= 0; i--) {
+                const g = glitches[i];
+                if (g.hp <= 0) {
+                    spawnParticles(g.x, g.y, '#ef4444', 14);
+                    addFloatingText(g.x, g.y - 10, '+5⚡', '#fbbf24');
+                    gameState.energy += 5;
+                    glitches.splice(i, 1);
+                    continue;
+                }
+
+                // Find nearest non-core node (or core if none left)
+                let targetNode = null;
+                let bestD = Infinity;
+                for (const n of gameState.nodes) {
+                    if (n.id === 'core' || n.corrupted) continue;
+                    const d = Math.hypot(n.x - g.x, n.y - g.y);
+                    if (d < bestD) {
+                        bestD = d;
+                        targetNode = n;
+                    }
+                }
+
+                if (!targetNode) {
+                    glitches.splice(i, 1);
+                    continue;
+                }
+
+                const angle = Math.atan2(targetNode.y - g.y, targetNode.x - g.x);
+                g.x += Math.cos(angle) * g.speed * dt;
+                g.y += Math.sin(angle) * g.speed * dt;
+
+                // Impact on node
+                if (bestD < 18) {
+                    targetNode.hp -= 45;
+                    spawnParticles(targetNode.x, targetNode.y, '#ef4444', 15);
+                    if (targetNode.hp <= 0) {
+                        targetNode.hp = 0;
+                        targetNode.corrupted = true;
+                        addFloatingText(targetNode.x, targetNode.y - 16, 'عقدة معطوبة!', '#ef4444');
+                    }
+                    glitches.splice(i, 1);
+                }
+            }
+        }
+
+        function startGlitchStorm() {
+            stormActive = true;
+            stormTimer = 22;
+            document.getElementById('storm-banner').classList.remove('hidden');
+            synth.playStormAlert();
+            for (let i = 0; i < 3; i++) spawnGlitchVirus();
+        }
+
+        function spawnGlitchVirus() {
+            // Pick a random outer node and spawn a glitch 320px away from it
+            const candidates = gameState.nodes.filter(n => n.id !== 'core');
+            if (candidates.length === 0) return;
+            const anchor = candidates[Math.floor(Math.random() * candidates.length)];
+            const angle = Math.random() * Math.PI * 2;
+            glitches.push({
+                x: anchor.x + Math.cos(angle) * 340,
+                y: anchor.y + Math.sin(angle) * 340,
+                hp: 60 + gameState.nodes.length * 2,
+                speed: 38 + Math.random() * 14
+            });
+        }
+
+        // --- 10. VISUAL EFFECTS HELPERS ---
+        function spawnParticles(x, y, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                const ang = Math.random() * Math.PI * 2;
+                const spd = 30 + Math.random() * 95;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(ang) * spd,
+                    vy: Math.sin(ang) * spd,
+                    color,
+                    life: 0.4 + Math.random() * 0.35
+                });
+            }
+        }
+
+        function addFloatingText(x, y, text, color) {
+            if (floatingTexts.length > 40) floatingTexts.shift();
+            floatingTexts.push({ x, y, text, color, life: 1.1 });
+        }
+
+        // --- 11. RENDERING PIPELINE (60 FPS NEON CYBER AESTHETIC) ---
+        function renderScene(targetCtx, width, height, camX, camY, zoom, isSnapshot = false) {
+            // 1. True Black Void Background
+            targetCtx.fillStyle = '#020206';
+            targetCtx.fillRect(0, 0, width, height);
+
+            targetCtx.save();
+            targetCtx.translate(width / 2, height / 2);
+            targetCtx.scale(zoom, zoom);
+            targetCtx.translate(-camX, -camY);
+
+            const halfW = (width / 2) / zoom;
+            const halfH = (height / 2) / zoom;
+            const viewLeft = camX - halfW;
+            const viewRight = camX + halfW;
+            const viewTop = camY - halfH;
+            const viewBottom = camY + halfH;
+
+            // 2. Subtle Cyber Grid Lines
+            const gridStep = 80;
+            const startX = Math.floor(viewLeft / gridStep) * gridStep;
+            const startY = Math.floor(viewTop / gridStep) * gridStep;
+
+            targetCtx.lineWidth = 1 / zoom;
+            targetCtx.strokeStyle = 'rgba(59, 130, 246, 0.08)';
+            targetCtx.beginPath();
+            for (let gx = startX; gx <= viewRight; gx += gridStep) {
+                targetCtx.moveTo(gx, viewTop);
+                targetCtx.lineTo(gx, viewBottom);
+            }
+            for (let gy = startY; gy <= viewBottom; gy += gridStep) {
+                targetCtx.moveTo(viewLeft, gy);
+                targetCtx.lineTo(viewRight, gy);
+            }
+            targetCtx.stroke();
+
+            // 3. Procedural Resource Deposits in View
+            const visibleResources = getVisibleResources(viewLeft, viewRight, viewTop, viewBottom);
+            const now = performance.now() / 1000;
+
+            for (const res of visibleResources) {
+                const pulse = 1 + Math.sin(now * 3 + res.x) * 0.12;
+                targetCtx.save();
+                targetCtx.translate(res.x, res.y);
+
+                if (res.type === 'energy_well') {
+                    // Electric Cyan Energy Well
+                    const grad = targetCtx.createRadialGradient(0, 0, 2, 0, 0, 26 * pulse);
+                    grad.addColorStop(0, 'rgba(6, 182, 212, 0.85)');
+                    grad.addColorStop(0.5, 'rgba(59, 130, 246, 0.25)');
+                    grad.addColorStop(1, 'rgba(6, 182, 212, 0)');
+                    targetCtx.fillStyle = grad;
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 26 * pulse, 0, Math.PI * 2);
+                    targetCtx.fill();
+
+                    targetCtx.strokeStyle = '#22d3ee';
+                    targetCtx.lineWidth = 1.5;
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 9, 0, Math.PI * 2);
+                    targetCtx.stroke();
+                } else if (res.type === 'data_crystal') {
+                    // Neon Purple Data Crystal (Diamond)
+                    const grad = targetCtx.createRadialGradient(0, 0, 2, 0, 0, 28 * pulse);
+                    grad.addColorStop(0, 'rgba(168, 85, 247, 0.85)');
+                    grad.addColorStop(0.6, 'rgba(168, 85, 247, 0.2)');
+                    grad.addColorStop(1, 'rgba(168, 85, 247, 0)');
+                    targetCtx.fillStyle = grad;
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 28 * pulse, 0, Math.PI * 2);
+                    targetCtx.fill();
+
+                    targetCtx.rotate(Math.PI / 4 + now * 0.4);
+                    targetCtx.strokeStyle = '#e879f9';
+                    targetCtx.lineWidth = 2;
+                    targetCtx.strokeRect(-7, -7, 14, 14);
+                } else if (res.type === 'overclock_core') {
+                    // Rare Gold Overclock Core
+                    const grad = targetCtx.createRadialGradient(0, 0, 2, 0, 0, 32 * pulse);
+                    grad.addColorStop(0, 'rgba(245, 158, 11, 0.9)');
+                    grad.addColorStop(0.5, 'rgba(245, 158, 11, 0.25)');
+                    grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+                    targetCtx.fillStyle = grad;
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 32 * pulse, 0, Math.PI * 2);
+                    targetCtx.fill();
+
+                    targetCtx.rotate(-now * 0.6);
+                    targetCtx.strokeStyle = '#fbbf24';
+                    targetCtx.lineWidth = 2;
+                    targetCtx.strokeRect(-8, -8, 16, 16);
+                    targetCtx.rotate(Math.PI / 4);
+                    targetCtx.strokeRect(-8, -8, 16, 16);
+                }
+                targetCtx.restore();
+            }
+
+            // 4. Build Range Aura & Hover Preview (only in live gameplay)
+            if (!isSnapshot && selectedTool !== 'repair') {
+                const maxRange = getMaxWireRange();
+                const anchor = findNearestPoweredNode(pointer.worldX, pointer.worldY, maxRange);
+
+                // Subtle range rings around nodes near cursor
+                for (const n of gameState.nodes) {
+                    if (n.corrupted) continue;
+                    if (Math.hypot(n.x - pointer.worldX, n.y - pointer.worldY) < maxRange * 1.4) {
+                        targetCtx.strokeStyle = 'rgba(56, 189, 248, 0.14)';
+                        targetCtx.lineWidth = 1;
+                        targetCtx.setLineDash([5, 5]);
+                        targetCtx.beginPath();
+                        targetCtx.arc(n.x, n.y, maxRange, 0, Math.PI * 2);
+                        targetCtx.stroke();
+                        targetCtx.setLineDash([]);
+                    }
+                }
+
+                // Preview wire & ghost node at cursor
+                if (anchor && !findNodeAt(pointer.worldX, pointer.worldY, 36)) {
+                    targetCtx.strokeStyle = 'rgba(6, 182, 212, 0.55)';
+                    targetCtx.lineWidth = 2;
+                    targetCtx.setLineDash([6, 4]);
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(anchor.x, anchor.y);
+                    targetCtx.lineTo(pointer.worldX, pointer.worldY);
+                    targetCtx.stroke();
+                    targetCtx.setLineDash([]);
+
+                    targetCtx.fillStyle = 'rgba(6, 182, 212, 0.35)';
+                    targetCtx.beginPath();
+                    targetCtx.arc(pointer.worldX, pointer.worldY, 8, 0, Math.PI * 2);
+                    targetCtx.fill();
+
+                    // Show Harvester or Firewall effect radius preview
+                    if (selectedTool === 'harvester') {
+                        targetCtx.strokeStyle = 'rgba(168, 85, 247, 0.35)';
+                        targetCtx.beginPath();
+                        targetCtx.arc(pointer.worldX, pointer.worldY, getHarvesterRange(), 0, Math.PI * 2);
+                        targetCtx.stroke();
+                    } else if (selectedTool === 'firewall') {
+                        targetCtx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
+                        targetCtx.beginPath();
+                        targetCtx.arc(pointer.worldX, pointer.worldY, getFirewallRange(), 0, Math.PI * 2);
+                        targetCtx.stroke();
+                    }
+                }
+            }
+
+            // 5. Energy Wires (Conduits)
+            const nodeMap = new Map(gameState.nodes.map(n => [n.id, n]));
+            for (const w of gameState.wires) {
+                const n1 = nodeMap.get(w.from);
+                const n2 = nodeMap.get(w.to);
+                if (!n1 || !n2) continue;
+
+                const isCorruptWire = n1.corrupted || n2.corrupted;
+                targetCtx.strokeStyle = isCorruptWire ? 'rgba(239, 68, 68, 0.45)' : 'rgba(99, 102, 241, 0.55)';
+                targetCtx.lineWidth = 2.5;
+                targetCtx.beginPath();
+                targetCtx.moveTo(n1.x, n1.y);
+                targetCtx.lineTo(n2.x, n2.y);
+                targetCtx.stroke();
+
+                // Inner bright filament
+                targetCtx.strokeStyle = isCorruptWire ? 'rgba(252, 165, 165, 0.4)' : 'rgba(56, 189, 248, 0.65)';
+                targetCtx.lineWidth = 1;
+                targetCtx.beginPath();
+                targetCtx.moveTo(n1.x, n1.y);
+                targetCtx.lineTo(n2.x, n2.y);
+                targetCtx.stroke();
+            }
+
+            // 6. Animated Energy Pulses along wires
+            if (!isSnapshot) {
+                for (const p of pulses) {
+                    const px = p.x1 + (p.x2 - p.x1) * p.progress;
+                    const py = p.y1 + (p.y2 - p.y1) * p.progress;
+                    targetCtx.fillStyle = p.color;
+                    targetCtx.shadowColor = p.color;
+                    targetCtx.shadowBlur = 10;
+                    targetCtx.beginPath();
+                    targetCtx.arc(px, py, 3.2, 0, Math.PI * 2);
+                    targetCtx.fill();
+                    targetCtx.shadowBlur = 0;
+                }
+            }
+
+            // 7. Network Nodes (Core, Relays, Harvesters, Firewalls)
+            for (const n of gameState.nodes) {
+                targetCtx.save();
+                targetCtx.translate(n.x, n.y);
+
+                if (n.corrupted) {
+                    // Corrupted Red Glitch State
+                    targetCtx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 20 + Math.sin(now * 15) * 3, 0, Math.PI * 2);
+                    targetCtx.fill();
+
+                    targetCtx.fillStyle = '#ef4444';
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 9, 0, Math.PI * 2);
+                    targetCtx.fill();
+                } else if (n.type === 'core') {
+                    // Central Core Node
+                    const glow = targetCtx.createRadialGradient(0, 0, 4, 0, 0, 38);
+                    glow.addColorStop(0, 'rgba(6, 182, 212, 0.9)');
+                    glow.addColorStop(0.5, 'rgba(168, 85, 247, 0.35)');
+                    glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    targetCtx.fillStyle = glow;
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 38, 0, Math.PI * 2);
+                    targetCtx.fill();
+
+                    targetCtx.rotate(now * 0.5);
+                    targetCtx.strokeStyle = '#a855f7';
+                    targetCtx.lineWidth = 2;
+                    targetCtx.strokeRect(-12, -12, 24, 24);
+
+                    targetCtx.fillStyle = '#22d3ee';
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 8, 0, Math.PI * 2);
+                    targetCtx.fill();
+                } else if (n.type === 'relay') {
+                    // Standard Relay Node
+                    targetCtx.fillStyle = 'rgba(59, 130, 246, 0.25)';
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 14, 0, Math.PI * 2);
+                    targetCtx.fill();
+
+                    targetCtx.fillStyle = '#60a5fa';
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, 6.5, 0, Math.PI * 2);
+                    targetCtx.fill();
+                } else if (n.type === 'harvester') {
+                    // Auto-Harvester Node
+                    targetCtx.strokeStyle = 'rgba(168, 85, 247, 0.15)';
+                    targetCtx.lineWidth = 1;
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, getHarvesterRange(), 0, Math.PI * 2);
+                    targetCtx.stroke();
+
+                    targetCtx.rotate(now * 1.2);
+                    targetCtx.fillStyle = '#c084fc';
+                    targetCtx.fillRect(-7, -7, 14, 14);
+                    targetCtx.strokeStyle = '#f0abfc';
+                    targetCtx.lineWidth = 1.5;
+                    targetCtx.strokeRect(-10, -10, 20, 20);
+                } else if (n.type === 'firewall') {
+                    // Firewall Defense Turret
+                    targetCtx.strokeStyle = 'rgba(245, 158, 11, 0.12)';
+                    targetCtx.lineWidth = 1;
+                    targetCtx.beginPath();
+                    targetCtx.arc(0, 0, getFirewallRange(), 0, Math.PI * 2);
+                    targetCtx.stroke();
+
+                    targetCtx.fillStyle = '#f59e0b';
+                    targetCtx.beginPath();
+                    for (let s = 0; s < 6; s++) {
+                        const a = (s * Math.PI) / 3;
+                        const rx = Math.cos(a) * 10;
+                        const ry = Math.sin(a) * 10;
+                        if (s === 0) targetCtx.moveTo(rx, ry);
+                        else targetCtx.lineTo(rx, ry);
+                    }
+                    targetCtx.closePath();
+                    targetCtx.fill();
+                }
+                targetCtx.restore();
+            }
+
+            // 8. Firewall Lasers, Glitches, Particles & Floating Popups
+            if (!isSnapshot) {
+                for (const l of lasers) {
+                    targetCtx.strokeStyle = '#fbbf24';
+                    targetCtx.lineWidth = 2.5;
+                    targetCtx.beginPath();
+                    targetCtx.moveTo(l.x1, l.y1);
+                    targetCtx.lineTo(l.x2, l.y2);
+                    targetCtx.stroke();
+                }
+
+                for (const g of glitches) {
+                    targetCtx.save();
+                    targetCtx.translate(g.x, g.y);
+                    targetCtx.rotate(now * 5);
+                    targetCtx.fillStyle = '#ef4444';
+                    targetCtx.shadowColor = '#ef4444';
+                    targetCtx.shadowBlur = 12;
+                    targetCtx.fillRect(-7, -7, 14, 14);
+                    targetCtx.restore();
+                }
+
+                for (const pt of particles) {
+                    targetCtx.globalAlpha = Math.max(0, pt.life * 1.5);
+                    targetCtx.fillStyle = pt.color;
+                    targetCtx.beginPath();
+                    targetCtx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+                    targetCtx.fill();
+                }
+                targetCtx.globalAlpha = 1;
+
+                targetCtx.font = 'bold 13px Orbitron, Cairo, sans-serif';
+                targetCtx.textAlign = 'center';
+                for (const ft of floatingTexts) {
+                    targetCtx.globalAlpha = Math.min(1, ft.life);
+                    targetCtx.fillStyle = ft.color;
+                    targetCtx.fillText(ft.text, ft.x, ft.y);
+                }
+                targetCtx.globalAlpha = 1;
+            }
+
+            targetCtx.restore();
+        }
+
+        function gameLoop(now) {
+            const dt = Math.min(0.1, (now - lastTime) / 1000);
+            lastTime = now;
+
+            updateSimulation(dt);
+            renderScene(ctx, window.innerWidth, window.innerHeight, camera.x, camera.y, camera.zoom, false);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- 12. INPUT HANDLING (MOUSE & MOBILE MULTI-TOUCH PAN/ZOOM) ---
+        canvas.addEventListener('mousedown', e => {
+            if (e.button !== 0) return;
+            pointer.isDown = true;
+            pointer.hasDragged = false;
+            pointer.dragStartX = e.clientX;
+            pointer.dragStartY = e.clientY;
+            pointer.camStartX = camera.x;
+            pointer.camStartY = camera.y;
+        });
+
+        window.addEventListener('mousemove', e => {
+            pointer.x = e.clientX;
+            pointer.y = e.clientY;
+            const w = screenToWorld(e.clientX, e.clientY);
+            pointer.worldX = w.x;
+            pointer.worldY = w.y;
+
+            if (pointer.isDown) {
+                const dx = e.clientX - pointer.dragStartX;
+                const dy = e.clientY - pointer.dragStartY;
+                if (Math.hypot(dx, dy) > 6) {
+                    pointer.hasDragged = true;
+                }
+                if (pointer.hasDragged) {
+                    camera.x = pointer.camStartX - dx / camera.zoom;
+                    camera.y = pointer.camStartY - dy / camera.zoom;
+                }
+            }
+        });
+
+        window.addEventListener('mouseup', e => {
+            if (!pointer.isDown) return;
+            pointer.isDown = false;
+            if (!pointer.hasDragged && e.target === canvas) {
+                const w = screenToWorld(e.clientX, e.clientY);
+                handleCanvasTap(w.x, w.y);
+            }
+        });
+
+        canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 0.14 : -0.14;
+            adjustZoom(delta);
+        }, { passive: false });
+
+        // Touch Events (Single-finger pan & tap + Two-finger pinch zoom)
+        canvas.addEventListener('touchstart', e => {
+            if (e.touches.length === 1) {
+                const t = e.touches[0];
+                pointer.isDown = true;
+                pointer.hasDragged = false;
+                pointer.dragStartX = t.clientX;
+                pointer.dragStartY = t.clientY;
+                pointer.camStartX = camera.x;
+                pointer.camStartY = camera.y;
+                const w = screenToWorld(t.clientX, t.clientY);
+                pointer.worldX = w.x;
+                pointer.worldY = w.y;
+            } else if (e.touches.length === 2) {
+                pointer.isDown = false;
+                pointer.pinchDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if (e.touches.length === 1 && pointer.isDown) {
+                const t = e.touches[0];
+                const dx = t.clientX - pointer.dragStartX;
+                const dy = t.clientY - pointer.dragStartY;
+                if (Math.hypot(dx, dy) > 8) {
+                    pointer.hasDragged = true;
+                }
+                if (pointer.hasDragged) {
+                    camera.x = pointer.camStartX - dx / camera.zoom;
+                    camera.y = pointer.camStartY - dy / camera.zoom;
+                }
+            } else if (e.touches.length === 2) {
+                const newDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                if (pointer.pinchDist > 0) {
+                    const diff = (newDist - pointer.pinchDist) * 0.005;
+                    adjustZoom(diff);
+                }
+                pointer.pinchDist = newDist;
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', e => {
+            if (e.touches.length === 0 && pointer.isDown) {
+                pointer.isDown = false;
+                if (!pointer.hasDragged) {
+                    const w = screenToWorld(pointer.dragStartX, pointer.dragStartY);
+                    pointer.worldX = w.x;
+                    pointer.worldY = w.y;
+                    handleCanvasTap(w.x, w.y);
+                }
+            }
+        });
+
+        // --- 13. UI CONTROLS, MODALS & SNAPSHOT EXPORT ---
+        function selectTool(tool) {
+            selectedTool = tool;
+            document.querySelectorAll('[id^="tool-"]').forEach(btn => btn.classList.remove('active-tool'));
+            const activeBtn = document.getElementById('tool-' + tool);
+            if (activeBtn) activeBtn.classList.add('active-tool');
+        }
+
+        function adjustZoom(delta) {
+            camera.targetZoom = Math.max(0.35, Math.min(2.2, camera.targetZoom + delta));
+        }
+
+        function centerCamera() {
+            camera.x = 0;
+            camera.y = 0;
+            camera.targetZoom = 1;
+        }
+
+        function toggleAudio() {
+            const isOn = synth.toggle();
+            document.getElementById('icon-sound-on').classList.toggle('hidden', !isOn);
+            document.getElementById('icon-sound-off').classList.toggle('hidden', isOn);
+            showToast(isOn ? 'تم تفعيل الصوت الإلكتروني' : 'تم كتم الصوت');
+        }
+
+        let toastTimeout = null;
+        function showToast(msg) {
+            const box = document.getElementById('toast-box');
+            const content = document.getElementById('toast-content');
+            content.textContent = msg;
+            box.classList.remove('opacity-0', 'translate-y-[-10px]');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                box.classList.add('opacity-0', 'translate-y-[-10px]');
+            }, 2400);
+        }
+
+        function updateUI() {
+            document.getElementById('ui-energy').textContent = Math.floor(gameState.energy).toLocaleString();
+            document.getElementById('ui-energy-rate').textContent = `(+${currentEnergyPerSec}/ث)`;
+            document.getElementById('ui-data').textContent = Math.floor(gameState.data).toLocaleString();
+            document.getElementById('ui-data-rate').textContent = `(+${currentDataPerSec}/ث)`;
+            document.getElementById('ui-nodes-count').textContent = `${gameState.nodes.length} عقدة`;
+            document.getElementById('ui-seed').textContent = gameState.seed;
+
+            // Update Tool Costs
+            const cRelay = getNodeCost('relay');
+            document.getElementById('cost-relay').textContent = `${cRelay.energy} ⚡`;
+
+            const cHarv = getNodeCost('harvester');
+            document.getElementById('cost-harvester').textContent = cHarv.data > 0 ? `${cHarv.energy}⚡ ${cHarv.data}◈` : `${cHarv.energy} ⚡`;
+
+            const cFw = getNodeCost('firewall');
+            document.getElementById('cost-firewall').textContent = `${cFw.energy}⚡ ${cFw.data}◈`;
+        }
+
+        // Upgrades Modal
+        function openUpgradesModal() {
+            renderUpgradesList();
+            document.getElementById('modal-upgrades').classList.remove('hidden');
+        }
+
+        function renderUpgradesList() {
+            const container = document.getElementById('upgrades-list');
+            container.innerHTML = '';
+
+            for (const def of UPGRADE_DEFS) {
+                const lvl = gameState.upgrades[def.id] || 1;
+                const cost = getUpgradeCost(def.id);
+                const canAfford = gameState.energy >= cost.energy && gameState.data >= cost.data;
+
+                const card = document.createElement('div');
+                card.className = 'bg-slate-950/90 border border-purple-500/25 rounded-2xl p-3.5 flex items-center justify-between gap-3';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-sm text-white">${def.name}</span>
+                            <span class="font-tech text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">LVL ${lvl}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">${def.desc}</p>
+                    </div>
+                    <button onclick="buyUpgrade('${def.id}')" class="cyber-btn shrink-0 px-3 py-2 rounded-xl font-tech text-xs font-bold border ${canAfford ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-slate-900 border-slate-700 text-slate-500'}">
+                        <div>${cost.energy} ⚡</div>
+                        ${cost.data > 0 ? `<div>${cost.data} ◈</div>` : ''}
+                    </button>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        function buyUpgrade(upgId) {
+            const cost = getUpgradeCost(upgId);
+            if (gameState.energy < cost.energy || gameState.data < cost.data) {
+                showToast('موارد غير كافية للتطوير!');
+                return;
+            }
+            gameState.energy -= cost.energy;
+            gameState.data -= cost.data;
+            gameState.upgrades[upgId] = (gameState.upgrades[upgId] || 1) + 1;
+            synth.playBuild('harvester');
+            saveGame();
+            updateUI();
+            renderUpgradesList();
+            showToast('تم تطوير تقنية الشبكة بنجاح!');
+        }
+
+        // Seed Modal & World Regeneration
+        function openSeedModal() {
+            document.getElementById('modal-current-seed').textContent = gameState.seed;
+            document.getElementById('modal-seed').classList.remove('hidden');
+        }
+
+        function copyCurrentSeed() {
+            const temp = document.createElement('input');
+            temp.value = gameState.seed;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            showToast(`تم نسخ كود العالم: ${gameState.seed}`);
+        }
+
+        function randomSeedInput() {
+            const prefixes = ['VOID', 'NEON', 'CYBER', 'GRID', 'SIGNAL', 'NOVA'];
+            const p = prefixes[Math.floor(Math.random() * prefixes.length)];
+            document.getElementById('input-new-seed').value = `${p}-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+
+        function applyNewSeed() {
+            const raw = document.getElementById('input-new-seed').value.trim().toUpperCase();
+            if (!raw) {
+                showToast('يرجى إدخال كود صحيح أولاً');
+                return;
+            }
+            gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+            gameState.seed = raw;
+            gameState.tutorialSeen = true;
+            seedInt = hashString(gameState.seed);
+            sectorCache.clear();
+            glitches = [];
+            pulses = [];
+            stormActive = false;
+            document.getElementById('storm-banner').classList.add('hidden');
+            centerCamera();
+            saveGame();
+            updateUI();
+            closeModals();
+            showToast(`تم توليد العالم الجديد: ${gameState.seed}`);
+        }
+
+        function openTutorial() {
+            document.getElementById('modal-tutorial').classList.remove('hidden');
+        }
+
+        function closeTutorial() {
+            gameState.tutorialSeen = true;
+            saveGame();
+            closeModals();
+        }
+
+        function closeModals() {
+            document.getElementById('modal-upgrades').classList.add('hidden');
+            document.getElementById('modal-seed').classList.add('hidden');
+            document.getElementById('modal-tutorial').classList.add('hidden');
+        }
+
+        // --- 14. HIGH-RES NETWORK SNAPSHOT EXPORT ---
+        function exportNetworkSnapshot() {
+            // Compute bounding box of the player's entire network
+            let minX = -250, maxX = 250, minY = -250, maxY = 250;
+            for (const n of gameState.nodes) {
+                if (n.x - 160 < minX) minX = n.x - 160;
+                if (n.x + 160 > maxX) maxX = n.x + 160;
+                if (n.y - 160 < minY) minY = n.y - 160;
+                if (n.y + 160 > maxY) maxY = n.y + 160;
+            }
+
+            const snapW = 1400;
+            const snapH = 1000;
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = snapW;
+            offCanvas.height = snapH;
+            const offCtx = offCanvas.getContext('2d');
+
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+            const spanX = maxX - minX;
+            const spanY = maxY - minY;
+            const fitZoom = Math.min(snapW / spanX, snapH / spanY, 1.4);
+
+            renderScene(offCtx, snapW, snapH, centerX, centerY, fitZoom, true);
+
+            // Watermark & Seed Frame
+            offCtx.strokeStyle = 'rgba(168, 85, 247, 0.5)';
+            offCtx.lineWidth = 4;
+            offCtx.strokeRect(20, 20, snapW - 40, snapH - 40);
+
+            offCtx.fillStyle = 'rgba(8, 10, 20, 0.85)';
+            offCtx.fillRect(36, snapH - 96, 440, 60);
+            offCtx.strokeStyle = 'rgba(6, 182, 212, 0.6)';
+            offCtx.lineWidth = 1.5;
+            offCtx.strokeRect(36, snapH - 96, 440, 60);
+
+            offCtx.fillStyle = '#22d3ee';
+            offCtx.font = 'bold 20px Orbitron, sans-serif';
+            offCtx.textAlign = 'left';
+            offCtx.fillText('VOIDGRID: THE INFINITE SIGNAL', 54, snapH - 68);
+
+            offCtx.fillStyle = '#c084fc';
+            offCtx.font = '14px Orbitron, sans-serif';
+            offCtx.fillText(`SEED: ${gameState.seed}  |  NODES: ${gameState.nodes.length}`, 54, snapH - 46);
+
+            const link = document.createElement('a');
+            link.download = `VoidGrid_${gameState.seed}.png`;
+            link.href = offCanvas.toDataURL('image/png');
+            link.click();
+
+            showToast('تم تصدير صورة شبكتك عالية الدقة!');
+        }
+
+        // --- 15. PERSISTENCE (LOCALSTORAGE) & INITIALIZATION ---
+        function saveGame() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+            } catch (e) {
+                // Ignore storage quota errors
+            }
+        }
+
+        function loadGame() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && parsed.nodes && parsed.nodes.length > 0) {
+                        gameState = { ...DEFAULT_STATE, ...parsed };
+                        seedInt = hashString(gameState.seed);
+                    }
+                }
+            } catch (e) {
+                // Fallback to default state
+            }
+        }
+
+        window.onload = function () {
+            loadGame();
+            updateUI();
+            if (!gameState.tutorialSeen) {
+                openTutorial();
+            }
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
